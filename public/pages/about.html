@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About Us — Lumière Clinic</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="stylesheet" href="../assets/css/chatbot-widget.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>[data-lucide]{width:1em;height:1em;vertical-align:middle;stroke-width:1.8;}</style>
+  <style>
+    /* Signed-in avatar chip in nav */
+    .nav-user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px 5px 5px;
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--navy);
+      cursor: pointer;
+      transition: all var(--transition);
+      text-decoration: none;
+    }
+    .nav-user-chip:hover { border-color: var(--accent); background: var(--accent-pale); }
+    .nav-user-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--sky);
+    }
+
+    /* Logout button — only visible when signed in */
+    #nav-logout-btn {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border: 1.5px solid #fecaca;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #dc2626;
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
+    }
+    #nav-logout-btn:hover { background: #fef2f2; border-color: #dc2626; }
+    #nav-logout-btn svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+    /* Mobile logout */
+    #mobile-logout-btn {
+      display: none;
+      padding: 13px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: #dc2626;
+      background: #fef2f2;
+      border: none;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+  </style>
+  <style>
+
+    /* ── PAGE HERO ───────────────────────────────────────── */
+    .page-hero {
+      background: var(--navy);
+      padding: 80px 24px 72px;
+      text-align: center;
+    }
+    .page-hero h1 { color: var(--white); font-size: clamp(2rem, 4vw, 3rem); margin-bottom: 12px; }
+    .page-hero p  { color: rgba(255,255,255,0.55); font-size: 1.05rem; max-width: 520px; margin: 0 auto; }
+    .page-hero .section-label { color: rgba(255,255,255,0.4); display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+
+    /* ── STORY ───────────────────────────────────────────── */
+    .story-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      align-items: center;
+    }
+
+    .story-visual {
+      background: var(--navy);
+      border-radius: var(--radius-lg);
+      aspect-ratio: 4/5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .story-visual::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.06);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .story-icon {
+      font-size: 64px;
+      position: relative; z-index: 1;
+    }
+    .story-visual-text {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.7);
+      text-align: center;
+      position: relative; z-index: 1;
+      padding: 0 32px;
+      line-height: 1.6;
+      font-style: italic;
+    }
+
+    .story-stat-row {
+      display: flex;
+      gap: 32px;
+      margin-top: 36px;
+    }
+    .story-stat {
+      flex: 1;
+      padding: 20px;
+      background: var(--off-white);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .story-stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 500;
+      color: var(--navy);
+      line-height: 1;
+    }
+    .story-stat-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ── VALUES ──────────────────────────────────────────── */
+    .values-section { background: var(--off-white); }
+
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .value-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 32px 24px;
+      text-align: center;
+      transition: all var(--transition);
+    }
+    .value-card:hover {
+      box-shadow: 0 8px 32px rgba(10,22,40,0.08);
+      transform: translateY(-4px);
+      border-color: var(--accent);
+    }
+    .value-icon { font-size: 36px; margin-bottom: 16px; }
+    .value-card h3 { font-size: 1rem; margin-bottom: 8px; }
+    .value-card p  { font-size: 0.85rem; line-height: 1.65; }
+
+    /* ── TEAM ────────────────────────────────────────────── */
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+
+    .team-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: all var(--transition);
+    }
+    .team-card:hover {
+      box-shadow: 0 12px 40px rgba(10,22,40,0.1);
+      transform: translateY(-4px);
+    }
+
+    .team-avatar {
+      background: var(--sky);
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+      position: relative;
+    }
+    .team-avatar::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 40px;
+      background: linear-gradient(to bottom, transparent, var(--sky));
+    }
+
+    .team-info {
+      padding: 20px 22px 24px;
+    }
+    .team-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    .team-role {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .team-bio {
+      font-size: 0.85rem;
+      line-height: 1.65;
+      color: var(--text-mid);
+    }
+
+    /* ── HOURS ───────────────────────────────────────────── */
+    .hours-section {
+      background: var(--navy);
+      color: var(--white);
+      padding: 80px 24px;
+    }
+    .hours-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: start;
+    }
+    .hours-section h2 { color: var(--white); margin-bottom: 8px; }
+    .hours-section .section-label { color: rgba(255,255,255,0.4); }
+    .hours-section .divider { background: var(--gold); }
+
+    .hours-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 24px;
+    }
+    .hours-table tr {
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .hours-table tr:last-child { border-bottom: none; }
+    .hours-table td {
+      padding: 14px 0;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.7);
+    }
+    .hours-table td:last-child {
+      text-align: right;
+      font-weight: 500;
+      color: var(--white);
+    }
+    .hours-table .closed { color: rgba(255,255,255,0.3) !important; }
+
+    .location-box {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-md);
+      padding: 28px;
+    }
+    .location-box h3 { color: var(--white); font-size: 1rem; margin-bottom: 16px; }
+    .location-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .location-row:last-child { border-bottom: none; }
+    .location-row span:first-child { font-size: 18px; flex-shrink: 0; }
+    .location-row p { color: rgba(255,255,255,0.6); font-size: 0.875rem; margin: 0; line-height: 1.5; }
+
+    /* ── RESPONSIVE ─────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .values-grid { grid-template-columns: repeat(2, 1fr); }
+      .team-grid   { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .story-grid  { grid-template-columns: 1fr; gap: 40px; }
+      .story-visual { aspect-ratio: 16/9; }
+      .hours-grid  { grid-template-columns: 1fr; gap: 40px; }
+    }
+    @media (max-width: 600px) {
+      .values-grid { grid-template-columns: 1fr; }
+      .team-grid   { grid-template-columns: 1fr; }
+      .story-stat-row { gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-mark">L</div>
+        <div>
+          <div class="nav-logo-text">Lumière</div>
+          <span class="nav-logo-sub">Skin Clinic</span>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/price">Services</a>
+        <a href="/about" class="active">About</a>
+        <a href="/login" id="nav-auth-btn">Sign In</a>
+        <button id="nav-logout-btn" onclick="navLogout()">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Logout
+        </button>
+        <a href="/booking" class="nav-cta">Book Now</a>
+      </div>
+      <button class="hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="mobile-menu">
+    <a href="/">Home</a>
+    <a href="/price">Services</a>
+    <a href="/about" class="active">About</a>
+    <a href="/login" id="mobile-auth-btn">Sign In</a>
+    <button id="mobile-logout-btn" onclick="navLogout()">⬅ Logout</button>
+    <a href="/booking" class="nav-cta">Book Now</a>
+  </div>
+
+  <main class="page-main">
+
+    <div class="page-hero">
+      <span class="section-label">Our Story</span>
+      <h1>Skin science with a human touch</h1>
+      <p>Founded in Bangkok, Lumière was built on one belief: that everyone deserves expert, personalised skin care.</p>
+    </div>
+
+    <!-- ── STORY ─────────────────────────────────────────── -->
+    <section>
+      <div class="container">
+        <div class="story-grid">
+          <div class="story-visual">
+            <div class="story-icon"><i data-lucide="leaf"></i></div>
+            <div class="story-visual-text">"Beauty rooted in science, delivered with care."</div>
+          </div>
+          <div>
+            <span class="section-label">Est. 2018 · Bangkok</span>
+            <h2>Where expertise meets compassion</h2>
+            <div class="divider"></div>
+            <p style="margin-bottom:16px;line-height:1.8;">Whether you're visiting us for the first time or the fiftieth, the standard stays the same: honest advice, visible results, and care that extends well beyond your appointment. We're not happy until you are.</p>
+            <!--<p style="margin-bottom:16px;line-height:1.8;">We use only FDA-approved products and medical-grade equipment, and every treatment plan is built around your unique skin profile — never a one-size-fits-all approach.</p>
+            <p style="line-height:1.8;">From our first client to our five-thousandth, our mission remains the same: help every person walk out with skin they're proud of and knowledge to maintain it.</p> -->
+
+            <div class="story-stat-row">
+              <div class="story-stat fade-up">
+                <div class="story-stat-num">5,000+</div>
+                <div class="story-stat-label">Clients treated</div>
+              </div>
+              <div class="story-stat fade-up">
+                <div class="story-stat-num">8 yrs</div>
+                <div class="story-stat-label">In practice</div>
+              </div>
+              <div class="story-stat fade-up">
+                <div class="story-stat-num">4.9★</div>
+                <div class="story-stat-label">Average rating</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── VALUES ────────────────────────────────────────── -->
+    <section class="values-section">
+      <div class="container">
+        <div class="section-header center fade-up">
+          <span class="section-label">What We Stand For</span>
+          <h2>Our values</h2>
+          <div class="divider"></div>
+        </div>
+        <div class="values-grid">
+          <div class="value-card fade-up">
+            <div class="value-icon"><i data-lucide="microscope"></i></div>
+            <h3>Evidence-Based</h3>
+            <p>Every treatment is grounded in clinical research and peer-reviewed dermatology.</p>
+          </div>
+          <div class="value-card fade-up">
+            <div class="value-icon"><i data-lucide="handshake"></i></div>
+            <h3>Patient-First</h3>
+            <p>We listen before we recommend. Your skin story guides every decision we make.</p>
+          </div>
+          <div class="value-card fade-up">
+            <div class="value-icon"><i data-lucide="shield"></i></div>
+            <h3>Safety Always</h3>
+            <p>Only FDA-approved products and protocols — no shortcuts, no compromises.</p>
+          </div>
+          <div class="value-card fade-up">
+            <div class="value-icon"><i data-lucide="lightbulb"></i></div>
+            <h3>Innovation</h3>
+            <p>From AI booking to the latest laser tech, we invest in what makes your experience better.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TEAM ──────────────────────────────────────────── -->
+    <section>
+      <div class="container">
+        <div class="section-header center fade-up">
+          <span class="section-label">The Experts</span>
+          <h2>Meet our team</h2>
+          <div class="divider"></div>
+          <p>Certified specialists with a shared passion for transformative skin care.</p>
+        </div>
+        <div class="team-grid">
+          <div class="team-card fade-up">
+            <div class="team-avatar"><i data-lucide="user-round"></i></div>
+            <div class="team-info">
+              <div class="team-name">Dr. Trix</div>
+              <div class="team-role">Lead Dermatologist</div>
+              <p class="team-bio">Board-certified dermatologist with 12 years of experience in medical and aesthetic skin care. Specialises in acne, pigmentation, and laser treatments.</p>
+            </div>
+          </div>
+          <div class="team-card fade-up">
+            <div class="team-avatar"><i data-lucide="user-round"></i></div>
+            <div class="team-info">
+              <div class="team-name">Dr. Ben</div>
+              <div class="team-role">Aesthetic Physician</div>
+              <p class="team-bio">Specialist in anti-aging and rejuvenation therapies. Trained in Seoul and London, with expertise in radiofrequency and collagen induction techniques.</p>
+            </div>
+          </div>
+          <div class="team-card fade-up">
+            <div class="team-avatar"><i data-lucide="flask-conical"></i></div>
+            <div class="team-info">
+              <div class="team-name">Dr. Thauvin</div>
+              <div class="team-role">Senior Skin Therapist</div>
+              <p class="team-bio">Certified medical aesthetician with 7 years of hands-on experience. Expert in hydration therapy, chemical peels, and post-procedure skin care.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── HOURS & LOCATION ──────────────────────────────── -->
+    <section class="hours-section">
+      <div class="container">
+        <div class="hours-grid">
+          <div>
+            <span class="section-label">Opening Hours</span>
+            <h2>When to visit us</h2>
+            <div class="divider"></div>
+            <table class="hours-table">
+              <tr><td>Monday</td><td>9:00 AM – 5:20 PM</td></tr>
+              <tr><td>Tuesday</td><td>9:00 AM – 5:20 PM</td></tr>
+              <tr><td>Wednesday</td><td>9:00 AM – 5:20 PM</td></tr>
+              <tr><td>Thursday</td><td>9:00 AM – 5:20 PM</td></tr>
+              <tr><td>Friday</td><td>9:00 AM – 5:20 PM</td></tr>
+              <tr><td>Saturday</td><td>9:00 AM – 5:20 PM</td></tr>
+              <tr><td class="closed">Sunday</td><td class="closed">Closed</td></tr>
+            </table>
+            <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin-top:16px;">Lunch break: 12:00 PM – 1:00 PM daily</p>
+          </div>
+
+          <div>
+            <span class="section-label">Find Us</span>
+            <h2>Our location</h2>
+            <div class="divider"></div>
+            <div class="location-box" style="margin-top:24px;">
+              <h3>Lumière Skin Clinic</h3>
+              <div class="location-row">
+                <span><i data-lucide="map-pin"></i></span>
+                <p>123 <br> Thailand</p>
+              </div>
+              <div class="location-row">
+                <span><i data-lucide="train-subway"></i></span>
+                <p>MRT<br>Exit 3, 5-minute walk</p>
+              </div>
+              <div class="location-row">
+                <span><i data-lucide="phone"></i></span>
+                <p>+66 2 000 0000</p>
+              </div>
+              <div class="location-row">
+                <span><i data-lucide="mail"></i></span>
+                <p>hello@lumiereclinic.th</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA ───────────────────────────────────────────── -->
+    <section style="text-align:center;padding:80px 24px;">
+      <div class="container">
+        <span class="section-label">Ready?</span>
+        <h2 class="fade-up" style="margin-bottom:12px;">Start your skin journey today</h2>
+        <p class="fade-up" style="max-width:440px;margin:0 auto 32px;font-size:1.05rem;">Book a consultation with our AI assistant — it only takes a minute.</p>
+        <a href="/chatbot" class="btn btn-primary fade-up">Book a Consultation →</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="nav-logo">
+            <div class="nav-logo-mark">L</div>
+            <div>
+              <div class="nav-logo-text">Lumière</div>
+              <span class="nav-logo-sub" style="color:rgba(255,255,255,0.4)">Skin Clinic</span>
+            </div>
+          </div>
+          <p>Advanced dermatology and skin care in Bangkok. Science-backed treatments for lasting results.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Navigation</h4>
+          <a href="/">Home</a>
+          <a href="/price">Services</a>
+          <a href="/about">About</a>
+          <a href="/chatbot">Book Now</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <a href="#">Bangkok, Thailand</a>
+          <a href="#">Mon–Sat: 9AM – 5PM</a>
+          <a href="#">Closed Sundays</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Lumière Skin Clinic. All rights reserved.</span>
+        <span>Made by William</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="../assets/js/script.js"></script>
+  <script src="../assets/js/chatbot-widget.js"></script>
+    <script src="../assets/js/auth-nav.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

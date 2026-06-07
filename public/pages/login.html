@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumière Clinic — Sign In</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    [data-lucide] {
+      width: 1em;
+      height: 1em;
+      vertical-align: middle;
+      stroke-width: 1.8;
+    }
+
+    /* ── AUTH PAGE LAYOUT ─────────────────────────────────── */
+    .auth-page {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding-top: var(--nav-h);
+    }
+
+    /* Left panel — decorative */
+    .auth-panel {
+      background: var(--navy);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 64px;
+      overflow: hidden;
+    }
+
+    .auth-panel-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 30%, rgba(37, 99, 235, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 80% 70%, rgba(201, 168, 76, 0.10) 0%, transparent 55%);
+    }
+
+    .auth-panel-rings {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .auth-panel-rings span {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transform: translate(-50%, -50%);
+    }
+
+    .auth-panel-rings span:nth-child(1) {
+      width: 320px;
+      height: 320px;
+    }
+
+    .auth-panel-rings span:nth-child(2) {
+      width: 520px;
+      height: 520px;
+    }
+
+    .auth-panel-rings span:nth-child(3) {
+      width: 720px;
+      height: 720px;
+    }
+
+    .auth-panel-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .auth-panel-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 99px;
+      padding: 6px 14px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 24px;
+    }
+
+    .auth-panel-tag-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .auth-panel h2 {
+      color: var(--white);
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+      margin-bottom: 16px;
+    }
+
+    .auth-panel h2 em {
+      color: var(--gold);
+      font-style: italic;
+    }
+
+    .auth-panel p {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.95rem;
+      line-height: 1.75;
+      max-width: 380px;
+      margin-bottom: 40px;
+    }
+
+    .auth-panel-perks {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .auth-perk {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.875rem;
+      color: rgba(255, 255, 255, 0.65);
+    }
+
+    .auth-perk-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--gold);
+    }
+
+    /* Right panel — form */
+    .auth-form-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 32px;
+      background: var(--off-white);
+    }
+
+    .auth-box {
+      width: 100%;
+      max-width: 440px;
+    }
+
+    /* Tabs */
+    .auth-tabs {
+      display: flex;
+      background: var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      margin-bottom: 36px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 10px;
+      border-radius: calc(var(--radius-sm) - 2px);
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      background: transparent;
+      transition: all var(--transition);
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+    }
+
+    .auth-tab.active {
+      background: var(--white);
+      color: var(--navy);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Form panels */
+    .auth-form-panel-inner {
+      display: none;
+    }
+
+    .auth-form-panel-inner.active {
+      display: block;
+    }
+
+    .auth-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.6rem;
+      font-weight: 500;
+      color: var(--navy);
+      margin-bottom: 6px;
+    }
+
+    .auth-subtitle {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+    }
+
+    /* Form fields */
+    .field-group {
+      margin-bottom: 18px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 7px;
+      letter-spacing: 0.01em;
+    }
+
+    .field-wrap {
+      position: relative;
+    }
+
+    .field-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 0.9em;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"] {
+      width: 100%;
+      padding: 11px 14px 11px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--white);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+
+    input.error {
+      border-color: #ef4444;
+    }
+
+    .field-hint {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .field-error {
+      font-size: 0.76rem;
+      color: #ef4444;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .field-error.show {
+      display: block;
+    }
+
+    /* Toggle password */
+    .pw-toggle {
+      position: absolute;
+      right: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+    }
+
+    .pw-toggle:hover {
+      color: var(--navy);
+    }
+
+    /* Submit button */
+    .btn-auth {
+      width: 100%;
+      padding: 13px;
+      background: var(--navy);
+      color: var(--white);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .btn-auth:hover:not(:disabled) {
+      background: var(--navy-mid);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(10, 22, 40, 0.2);
+    }
+
+    .btn-auth:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .auth-switch {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-top: 24px;
+    }
+
+    .auth-switch button {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: inherit;
+      padding: 0;
+    }
+
+    .auth-switch button:hover {
+      text-decoration: underline;
+    }
+
+    /* Alert box */
+    .auth-alert {
+      display: none;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .auth-alert.show {
+      display: flex;
+    }
+
+    .auth-alert.success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #15803d;
+    }
+
+    .auth-alert.error-alert {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+    }
+
+    /* Terms note */
+    .terms-note {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+
+    .terms-note a {
+      color: var(--accent);
+    }
+
+    /* Password strength */
+    .pw-strength {
+      margin-top: 6px;
+      display: none;
+    }
+
+    .pw-strength.show {
+      display: block;
+    }
+
+    .pw-strength-bar {
+      height: 3px;
+      border-radius: 2px;
+      background: var(--border);
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+
+    .pw-strength-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s, background 0.3s;
+      width: 0;
+    }
+
+    .pw-strength-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* Back to site link */
+    .auth-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+      transition: color var(--transition);
+    }
+
+    .auth-back:hover {
+      color: var(--navy);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+
+    .spinner.show {
+      display: block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── ANIMATIONS ──────────────────────────────────────── */
+
+    /* Page entrance — right form panel slides up */
+    @keyframes authBoxIn {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .auth-box {
+      animation: authBoxIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    /* Left panel content staggered reveal */
+    @keyframes panelFadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .auth-panel-tag     { animation: panelFadeUp 0.6s 0.15s cubic-bezier(0.22,1,0.36,1) both; }
+    .auth-panel h2      { animation: panelFadeUp 0.6s 0.28s cubic-bezier(0.22,1,0.36,1) both; }
+    .auth-panel p       { animation: panelFadeUp 0.6s 0.38s cubic-bezier(0.22,1,0.36,1) both; }
+    .auth-perk:nth-child(1) { animation: panelFadeUp 0.5s 0.48s cubic-bezier(0.22,1,0.36,1) both; }
+    .auth-perk:nth-child(2) { animation: panelFadeUp 0.5s 0.56s cubic-bezier(0.22,1,0.36,1) both; }
+    .auth-perk:nth-child(3) { animation: panelFadeUp 0.5s 0.64s cubic-bezier(0.22,1,0.36,1) both; }
+    .auth-perk:nth-child(4) { animation: panelFadeUp 0.5s 0.72s cubic-bezier(0.22,1,0.36,1) both; }
+
+    /* Tab slide transition */
+    .auth-form-panel-inner {
+      display: block;
+      opacity: 0;
+      transform: translateX(16px);
+      pointer-events: none;
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      transition: opacity 0s, transform 0s;
+      visibility: hidden;
+    }
+    .auth-form-panel-inner.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+      position: relative;
+      visibility: visible;
+      transition: opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .auth-form-panel-inner.exit-left {
+      opacity: 0;
+      transform: translateX(-16px);
+      pointer-events: none;
+      position: absolute;
+      visibility: visible;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    /* Wrapper to allow absolute positioning during tab switch */
+    .auth-tabs-content {
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Input focus lift */
+    .field-wrap {
+      transition: transform 0.2s ease;
+    }
+    .field-wrap:focus-within {
+      transform: translateY(-1px);
+    }
+    .field-wrap:focus-within input {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+
+    /* Label float up on focus */
+    .field-group label {
+      transition: color 0.2s ease;
+    }
+    .field-group:focus-within label {
+      color: var(--accent);
+    }
+
+    /* Auth alert slide-in */
+    @keyframes alertIn {
+      from { opacity: 0; transform: translateY(-6px); max-height: 0; }
+      to   { opacity: 1; transform: translateY(0);    max-height: 80px; }
+    }
+    .auth-alert.show {
+      display: flex;
+      animation: alertIn 0.3s ease both;
+    }
+
+    /* Button press feedback */
+    .btn-auth {
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-auth::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .btn-auth:active::after { opacity: 1; }
+
+    /* Tab active indicator slide */
+    .auth-tabs {
+      position: relative;
+    }
+    .auth-tab {
+      transition: color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    /* Rings slow rotation */
+    .auth-panel-rings span:nth-child(1) {
+      animation: slowSpin 30s linear infinite;
+    }
+    .auth-panel-rings span:nth-child(2) {
+      animation: slowSpin 45s linear infinite reverse;
+    }
+    .auth-panel-rings span:nth-child(3) {
+      animation: slowSpin 60s linear infinite;
+    }
+    @keyframes slowSpin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to   { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .auth-page {
+        grid-template-columns: 1fr;
+      }
+
+      .auth-panel {
+        display: none;
+      }
+
+      .auth-form-panel {
+        padding: 32px 20px;
+        align-items: flex-start;
+        padding-top: 40px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .field-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── NAV ─────────────────────────────────────────────── -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-mark">L</div>
+        <div>
+          <div class="nav-logo-text">Lumière</div>
+          <span class="nav-logo-sub">Skin Clinic</span>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/price">Services</a>
+        <a href="/about">About</a>
+        <a href="/booking" class="nav-cta">Book Now</a>
+      </div>
+      <button class="hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="mobile-menu">
+    <a href="/">Home</a>
+    <a href="/price">Services</a>
+    <a href="/about">About</a>
+    <a href="/booking" class="nav-cta">Book Now</a>
+  </div>
+
+  <!-- ── AUTH PAGE ─────────────────────────────────────────── -->
+  <div class="auth-page">
+
+    <!-- Left decorative panel -->
+    <div class="auth-panel">
+      <div class="auth-panel-bg"></div>
+      <div class="auth-panel-rings">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="auth-panel-content">
+        <div class="auth-panel-tag">
+          <span class="auth-panel-tag-dot"></span>
+          Members-only benefits
+        </div>
+        <h2 class="display">Your skin journey,<br><em>personalised</em></h2>
+        <p>Sign in to access your appointment history, book and manage sessions through our AI assistant, and get
+          personalised treatment recommendations.</p>
+        <div class="auth-panel-perks">
+          <div class="auth-perk">
+            <div class="auth-perk-icon"><i data-lucide="calendar-check"></i></div>
+            <span>Book, cancel & reschedule via AI chatbot</span>
+          </div>
+          <div class="auth-perk">
+            <div class="auth-perk-icon"><i data-lucide="history"></i></div>
+            <span>Full appointment history at a glance</span>
+          </div>
+          <div class="auth-perk">
+            <div class="auth-perk-icon"><i data-lucide="sparkles"></i></div>
+            <span>Personalised skin-care recommendations</span>
+          </div>
+          <div class="auth-perk">
+            <div class="auth-perk-icon"><i data-lucide="shield-check"></i></div>
+            <span>Secure, no-hassle one-click booking</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right form panel -->
+    <div class="auth-form-panel">
+      <div class="auth-box">
+
+        <a href="/" class="auth-back">
+          <i data-lucide="arrow-left"></i> Back to site
+        </a>
+
+        <!-- Tabs -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign In</button>
+          <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Create Account</button>
+        </div>
+
+        <!-- ── LOGIN FORM ─────────────────────────────────── -->
+        <div class="auth-tabs-content">
+        <div class="auth-form-panel-inner active" id="panel-login">
+          <div class="auth-title">Welcome back</div>
+          <div class="auth-subtitle">Sign in to manage your appointments</div>
+
+          <div class="auth-alert" id="login-alert"></div>
+
+          <div class="field-group">
+            <label for="login-email">Email address</label>
+            <div class="field-wrap">
+              <span class="field-icon"><i data-lucide="mail"></i></span>
+              <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+            </div>
+            <div class="field-error" id="login-email-err">Please enter a valid email.</div>
+          </div>
+
+          <div class="field-group">
+            <label for="login-password">Password</label>
+            <div class="field-wrap">
+              <span class="field-icon"><i data-lucide="lock"></i></span>
+              <input type="password" id="login-password" placeholder="Your password" autocomplete="current-password" />
+              <button class="pw-toggle" onclick="togglePw('login-password', this)" type="button"
+                aria-label="Show password">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
+            <div class="field-error" id="login-pw-err">Password is required.</div>
+          </div>
+
+          <button class="btn-auth" id="btn-login" onclick="handleLogin()">
+            <span class="spinner" id="login-spinner"></span>
+            <span id="login-btn-text">Sign In</span>
+            <i data-lucide="arrow-right" id="login-arrow"></i>
+          </button>
+
+          <div class="auth-switch">
+            Don't have an account?
+            <button onclick="switchTab('register')">Create one for free</button>
+          </div>
+
+          <div class="auth-divider">or</div>
+          <div style="text-align:center;font-size:0.85rem;color:var(--text-muted);">
+            No account needed to book. <a href="/booking" style="color:var(--accent);font-weight:500;">Book as guest
+              →</a>
+          </div>
+        </div>
+
+        <!-- ── REGISTER FORM ───────────────────────────────── -->
+        <div class="auth-form-panel-inner" id="panel-register">
+          <div class="auth-title">Create account</div>
+          <div class="auth-subtitle">Join Lumière for a personalised experience</div>
+
+          <div class="auth-alert" id="reg-alert"></div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label for="reg-name">Full name</label>
+              <div class="field-wrap">
+                <span class="field-icon"><i data-lucide="user"></i></span>
+                <input type="text" id="reg-name" placeholder="Jane Smith" autocomplete="name" />
+              </div>
+              <div class="field-error" id="reg-name-err">Name is required.</div>
+            </div>
+            <div class="field-group">
+              <label for="reg-phone">Phone number</label>
+              <div class="field-wrap">
+                <span class="field-icon"><i data-lucide="phone"></i></span>
+                <input type="tel" id="reg-phone" placeholder="08X-XXX-XXXX" autocomplete="tel" />
+              </div>
+              <div class="field-error" id="reg-phone-err">Valid phone required.</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="reg-email">Email address</label>
+            <div class="field-wrap">
+              <span class="field-icon"><i data-lucide="mail"></i></span>
+              <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" />
+            </div>
+            <div class="field-error" id="reg-email-err">Please enter a valid email.</div>
+          </div>
+
+          <div class="field-group">
+            <label for="reg-id">Thai ID / Passport number</label>
+            <div class="field-wrap">
+              <span class="field-icon"><i data-lucide="credit-card"></i></span>
+              <input type="text" id="reg-id" placeholder="1234567890123" />
+            </div>
+            <div class="field-hint">Used for verification only. Never shared.</div>
+            <div class="field-error" id="reg-id-err">ID number is required.</div>
+          </div>
+
+          <div class="field-group">
+            <label for="reg-password">Password</label>
+            <div class="field-wrap">
+              <span class="field-icon"><i data-lucide="lock"></i></span>
+              <input type="password" id="reg-password" placeholder="Min. 8 characters" autocomplete="new-password"
+                oninput="checkPwStrength(this.value)" />
+              <button class="pw-toggle" onclick="togglePw('reg-password', this)" type="button"
+                aria-label="Show password">
+                <i data-lucide="eye"></i>
+              </button>
+            </div>
+            <div class="pw-strength" id="pw-strength">
+              <div class="pw-strength-bar">
+                <div class="pw-strength-fill" id="pw-strength-fill"></div>
+              </div>
+              <div class="pw-strength-label" id="pw-strength-label"></div>
+            </div>
+            <div class="field-error" id="reg-pw-err">Password must be at least 8 characters.</div>
+          </div>
+
+          <button class="btn-auth" id="btn-register" onclick="handleRegister()">
+            <span class="spinner" id="reg-spinner"></span>
+            <span id="reg-btn-text">Create Account</span>
+            <i data-lucide="arrow-right" id="reg-arrow"></i>
+          </button>
+
+          <p class="terms-note">
+            By creating an account you agree to our
+            <a href="#">Privacy Policy</a> and <a href="#">Terms of Service</a>.
+          </p>
+
+          <div class="auth-switch">
+            Already have an account?
+            <button onclick="switchTab('login')">Sign in</button>
+          </div>
+        </div>
+        </div><!-- end auth-tabs-content -->
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/js/script.js"></script>
+  <!-- login.html ends with only script.js, add: -->
+  <script src="../assets/js/auth-nav.js"></script>
+  <script>
+    const API_BASE = 'http://localhost:3000' // Change to your deployed API URL
+
+    // ── Tab switching with animation ──────────────────────
+    function switchTab(tab) {
+      const currentPanel = document.querySelector('.auth-form-panel-inner.active')
+      const nextPanel    = document.getElementById('panel-' + tab)
+      if (!nextPanel || currentPanel === nextPanel) return
+
+      // Determine direction
+      const tabs   = ['login', 'register']
+      const curIdx = tabs.indexOf(currentPanel.id.replace('panel-', ''))
+      const nxtIdx = tabs.indexOf(tab)
+      const goRight = nxtIdx > curIdx
+
+      // Update tab buttons
+      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'))
+      document.getElementById('tab-' + tab).classList.add('active')
+
+      // Set next panel start position
+      nextPanel.style.transform = goRight ? 'translateX(24px)' : 'translateX(-24px)'
+      nextPanel.style.opacity   = '0'
+      nextPanel.style.visibility = 'visible'
+      nextPanel.style.position  = 'absolute'
+      nextPanel.style.pointerEvents = 'none'
+
+      // Exit current
+      currentPanel.classList.remove('active')
+      currentPanel.classList.add('exit-left')
+      currentPanel.style.transform = goRight ? 'translateX(-24px)' : 'translateX(24px)'
+
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        nextPanel.style.transform = ''
+        nextPanel.style.opacity   = ''
+        nextPanel.style.visibility = ''
+        nextPanel.style.position  = ''
+        nextPanel.style.pointerEvents = ''
+        nextPanel.classList.add('active')
+
+        setTimeout(() => {
+          currentPanel.classList.remove('exit-left')
+          currentPanel.style.transform = ''
+        }, 280)
+      }))
+    }
+
+    // ── Toggle password visibility ────────────────────────
+    function togglePw(inputId, btn) {
+      const input = document.getElementById(inputId)
+      const isText = input.type === 'text'
+      input.type = isText ? 'password' : 'text'
+      btn.innerHTML = isText
+        ? '<i data-lucide="eye"></i>'
+        : '<i data-lucide="eye-off"></i>'
+      lucide.createIcons()
+    }
+
+    // ── Password strength ─────────────────────────────────
+    function checkPwStrength(pw) {
+      const el = document.getElementById('pw-strength')
+      const fill = document.getElementById('pw-strength-fill')
+      const label = document.getElementById('pw-strength-label')
+      if (!pw) { el.classList.remove('show'); return }
+      el.classList.add('show')
+
+      let score = 0
+      if (pw.length >= 8) score++
+      if (pw.length >= 12) score++
+      if (/[A-Z]/.test(pw)) score++
+      if (/[0-9]/.test(pw)) score++
+      if (/[^A-Za-z0-9]/.test(pw)) score++
+
+      const levels = [
+        { pct: '20%', color: '#ef4444', text: 'Too weak' },
+        { pct: '40%', color: '#f97316', text: 'Weak' },
+        { pct: '60%', color: '#eab308', text: 'Fair' },
+        { pct: '80%', color: '#22c55e', text: 'Good' },
+        { pct: '100%', color: '#16a34a', text: 'Strong' },
+      ]
+      const lvl = levels[Math.min(score - 1, 4)] || levels[0]
+      fill.style.width = lvl.pct
+      fill.style.background = lvl.color
+      label.textContent = lvl.text
+      label.style.color = lvl.color
+    }
+
+    // ── Show alert ────────────────────────────────────────
+    function showAlert(id, type, msg) {
+      const el = document.getElementById(id)
+      el.className = 'auth-alert show ' + type
+      el.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> ${msg}`
+      lucide.createIcons()
+    }
+
+    // ── Set loading state ─────────────────────────────────
+    // Maps logical prefix → actual element ID prefixes in the HTML
+    const ID_MAP = {
+      login: { btn: 'btn-login', spinner: 'login-spinner', text: 'login-btn-text', arrow: 'login-arrow' },
+      register: { btn: 'btn-register', spinner: 'reg-spinner', text: 'reg-btn-text', arrow: 'reg-arrow' },
+    }
+
+    function setLoading(prefix, loading) {
+      const ids = ID_MAP[prefix]
+      if (!ids) return
+      const btn = document.getElementById(ids.btn)
+      const spinner = document.getElementById(ids.spinner)
+      const text = document.getElementById(ids.text)
+      const arrow = document.getElementById(ids.arrow)
+      if (btn) btn.disabled = loading
+      if (spinner) spinner.classList.toggle('show', loading)
+      if (text) text.style.opacity = loading ? '0.5' : '1'
+      if (arrow) arrow.style.display = loading ? 'none' : ''
+    }
+
+    // ── Login ─────────────────────────────────────────────
+    async function handleLogin() {
+      const email = document.getElementById('login-email').value.trim()
+      const password = document.getElementById('login-password').value
+
+      // Clear errors
+      document.querySelectorAll('#panel-login .field-error').forEach(e => e.classList.remove('show'))
+
+      let valid = true
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        document.getElementById('login-email-err').classList.add('show'); valid = false
+      }
+      if (!password) {
+        document.getElementById('login-pw-err').classList.add('show'); valid = false
+      }
+      if (!valid) return
+
+      setLoading('login', true)
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          localStorage.setItem('lc_token', data.token)
+          localStorage.setItem('lc_user', JSON.stringify(data.user))
+          window.dispatchEvent(new CustomEvent('auth:login', { detail: { token: data.token, user: data.user } }))
+          showAlert('login-alert', 'success', `Welcome back, ${data.user.displayName}! Redirecting…`)
+          setTimeout(() => { window.location.href = '/' }, 1200)
+          return // don't reset loading state after redirect begins
+        } else {
+          showAlert('login-alert', 'error-alert', data.message || 'Login failed.')
+        }
+      } catch (err) {
+        const isNetErr = err instanceof TypeError
+        showAlert('login-alert', 'error-alert',
+          isNetErr
+            ? 'Cannot reach the server. Make sure your backend is running and API_BASE is set correctly.'
+            : 'Login failed. Please try again.'
+        )
+      }
+
+      setLoading('login', false)
+    }
+
+    // ── Register ──────────────────────────────────────────
+    async function handleRegister() {
+      const name = document.getElementById('reg-name').value.trim()
+      const phone = document.getElementById('reg-phone').value.trim()
+      const email = document.getElementById('reg-email').value.trim()
+      const idNumber = document.getElementById('reg-id').value.trim()
+      const password = document.getElementById('reg-password').value
+
+      document.querySelectorAll('#panel-register .field-error').forEach(e => e.classList.remove('show'))
+
+      let valid = true
+      if (!name) { document.getElementById('reg-name-err').classList.add('show'); valid = false }
+      if (!phone || !/^[0-9+\-\s]{7,15}$/.test(phone)) { document.getElementById('reg-phone-err').classList.add('show'); valid = false }
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('reg-email-err').classList.add('show'); valid = false }
+      if (!idNumber) { document.getElementById('reg-id-err').classList.add('show'); valid = false }
+      if (password.length < 8) { document.getElementById('reg-pw-err').classList.add('show'); valid = false }
+      if (!valid) return
+
+      setLoading('register', true)
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, email, idNumber, password })
+        })
+        const data = await res.json()
+
+        if (data.success) {
+          localStorage.setItem('lc_token', data.token)
+          localStorage.setItem('lc_user', JSON.stringify(data.user))
+          window.dispatchEvent(new CustomEvent('auth:login', { detail: { token: data.token, user: data.user } }))
+          showAlert('reg-alert', 'success', 'Account created! Redirecting to the AI assistant…')
+          setTimeout(() => { window.location.href = '/' }, 1400)
+          return // don't reset loading state after redirect begins
+        } else {
+          showAlert('reg-alert', 'error-alert', data.message || 'Registration failed.')
+        }
+      } catch (err) {
+        const isNetErr = err instanceof TypeError
+        showAlert('reg-alert', 'error-alert',
+          isNetErr
+            ? 'Cannot reach the server. Make sure your backend is running and API_BASE is set correctly.'
+            : 'Registration failed. Please try again.'
+        )
+      }
+
+      setLoading('register', false)
+    }
+
+    // ── Enter key support ─────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return
+      const active = document.querySelector('.auth-form-panel-inner.active')
+      if (active.id === 'panel-login') handleLogin()
+      else handleRegister()
+    })
+
+    // ── Check if already logged in ────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('lc_token')
+      if (token) {
+        // Already logged in — optionally redirect
+        // window.location.href = 'chatbot.html'
+      }
+
+      // Support ?tab=register in URL
+      const params = new URLSearchParams(location.search)
+      if (params.get('tab') === 'register') switchTab('register')
+    })
+  </script>
+  <script>lucide.createIcons();</script>
+</body>
+
+</html>

@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumière Clinic — Advanced Skin Care</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/chatbot-widget.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>[data-lucide]{width:1em;height:1em;vertical-align:middle;stroke-width:1.8;}</style>
+  <style>
+    /* Signed-in avatar chip in nav */
+    .nav-user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px 5px 5px;
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--navy);
+      cursor: pointer;
+      transition: all var(--transition);
+      text-decoration: none;
+    }
+    .nav-user-chip:hover { border-color: var(--accent); background: var(--accent-pale); }
+    .nav-user-avatar {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--sky);
+    }
+
+    /* Logout button — only visible when signed in */
+    #nav-logout-btn {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border: 1.5px solid #fecaca;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #dc2626;
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
+    }
+    #nav-logout-btn:hover { background: #fef2f2; border-color: #dc2626; }
+    #nav-logout-btn svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+    /* Mobile logout */
+    #mobile-logout-btn {
+      display: none;
+      padding: 13px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: #dc2626;
+      background: #fef2f2;
+      border: none;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+    }
+  </style>
+  <style>
+    /* ── HERO ─────────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      padding-top: var(--nav-h);
+      overflow: hidden;
+    }
+
+    .hero-left {
+      display: flex;
+      align-items: center;
+      padding: 80px 64px 80px 24px;
+      max-width: 640px;
+      margin-left: auto;
+    }
+
+    .hero-content { max-width: 520px; }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+    }
+    .hero-eyebrow::before {
+      content: '';
+      width: 24px; height: 1.5px;
+      background: var(--accent);
+    }
+
+    .hero-title { margin-bottom: 20px; }
+    .hero-title em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .hero-desc {
+      font-size: 1.05rem;
+      line-height: 1.75;
+      color: var(--text-mid);
+      margin-bottom: 40px;
+      font-weight: 300;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 32px;
+      margin-top: 56px;
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+    .stat-num {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.8rem;
+      font-weight: 500;
+      color: var(--navy);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .hero-right {
+      background: var(--navy);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Decorative geometric shapes */
+    .hero-right::before {
+      content: '';
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.06);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .hero-right::after {
+      content: '';
+      position: absolute;
+      width: 260px; height: 260px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.06);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .hero-visual {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      padding: 48px;
+    }
+
+    .hero-visual-icon {
+      width: 120px; height: 120px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 28px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 52px;
+      margin: 0 auto 32px;
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-visual-tagline {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.4rem;
+      font-weight: 400;
+      color: var(--white);
+      margin-bottom: 8px;
+      letter-spacing: 0.01em;
+    }
+    .hero-visual-sub {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.4);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .floating-badge {
+      position: absolute;
+      background: var(--white);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .floating-badge.b1 { top: 18%; left: 8%; animation: float 4s ease-in-out infinite; }
+    .floating-badge.b2 { bottom: 20%; right: 6%; animation: float 4s ease-in-out infinite 2s; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-8px); }
+    }
+
+    .badge-icon { font-size: 20px; }
+    .badge-label { font-size: 0.72rem; color: var(--text-muted); }
+    .badge-val   { font-size: 0.9rem; font-weight: 600; color: var(--navy); line-height: 1.2; }
+
+    /* ── TRUST STRIP ─────────────────────────────────────── */
+    .trust-strip {
+      padding: 28px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--off-white);
+    }
+    .trust-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      flex-wrap: wrap;
+    }
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-mid);
+    }
+    .trust-item span { font-size: 18px; }
+
+    /* ── WHY US ─────────────────────────────────────────── */
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 0;
+    }
+
+    .why-card {
+      padding: 36px 28px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      transition: all var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .why-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--navy));
+      transform: scaleX(0);
+      transition: transform var(--transition);
+    }
+    .why-card:hover { box-shadow: 0 8px 32px rgba(10,22,40,0.09); transform: translateY(-4px); }
+    .why-card:hover::before { transform: scaleX(1); }
+
+    .why-icon {
+      width: 52px; height: 52px;
+      background: var(--sky);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .why-card h3 { margin-bottom: 8px; font-size: 1.05rem; }
+    .why-card p  { font-size: 0.875rem; line-height: 1.65; }
+
+    /* ── SERVICES PREVIEW ───────────────────────────────── */
+    .services-section { background: var(--off-white); }
+
+    .svc-preview-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .svc-preview-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 28px 22px;
+      transition: all var(--transition);
+      cursor: pointer;
+    }
+    .svc-preview-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 8px 24px rgba(37,99,235,0.1);
+      transform: translateY(-4px);
+    }
+    .svc-emoji { font-size: 28px; margin-bottom: 14px; }
+    .svc-preview-card h3 { font-size: 0.95rem; margin-bottom: 6px; }
+    .svc-preview-card p  { font-size: 0.8rem; line-height: 1.6; }
+    .svc-price {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .services-cta {
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    /* ── CTA BANNER ─────────────────────────────────────── */
+    .cta-section {
+      background: var(--navy);
+      color: var(--white);
+      text-align: center;
+      padding: 80px 24px;
+    }
+    .cta-section h2 { color: var(--white); margin-bottom: 12px; }
+    .cta-section p  { color: rgba(255,255,255,0.6); font-size: 1.05rem; margin-bottom: 36px; }
+    .cta-section .btn-accent { font-size: 1rem; padding: 15px 36px; }
+
+    /* ── RESPONSIVE ─────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .svc-preview-grid { grid-template-columns: repeat(2, 1fr); }
+      .why-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .hero {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+      .hero-left {
+        padding: 48px 24px;
+        max-width: 100%;
+        margin: 0;
+      }
+      .hero-right {
+        min-height: 320px;
+      }
+      .floating-badge.b1 { top: 12%; left: 4%; }
+      .floating-badge.b2 { bottom: 12%; right: 4%; }
+      .hero-stats { gap: 24px; }
+      .why-grid { grid-template-columns: 1fr; }
+      .svc-preview-grid { grid-template-columns: repeat(2, 1fr); }
+      .trust-inner { gap: 24px; }
+    }
+
+    @media (max-width: 480px) {
+      .svc-preview-grid { grid-template-columns: 1fr; }
+      .hero-actions { flex-direction: column; align-items: flex-start; }
+      .hero-stats { flex-wrap: wrap; gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── NAV ─────────────────────────────────────────────── -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-mark">L</div>
+        <div>
+          <div class="nav-logo-text">Lumière</div>
+          <span class="nav-logo-sub">Skin Clinic</span>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="active">Home</a>
+        <a href="/price">Services</a>
+        <a href="/about">About</a>
+        <a href="/login" id="nav-auth-btn">Sign In</a>
+        <button id="nav-logout-btn" onclick="navLogout()">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Logout
+        </button>
+        <a href="/booking" class="nav-cta">Book Now</a>
+      </div>
+      <button class="hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── MOBILE MENU ──────────────────────────────────────── -->
+  <div class="mobile-menu">
+    <a href="/" class="active">Home</a>
+    <a href="/price">Services</a>
+    <a href="/about">About</a>
+    <a href="/login" id="mobile-auth-btn">Sign In</a>
+    <button id="mobile-logout-btn" onclick="navLogout()">⬅ Logout</button>
+    <a href="/booking" class="nav-cta">Book Now</a>
+  </div>
+
+  <main class="page-main">
+
+    <!-- ── HERO ─────────────────────────────────────────── -->
+    <section class="hero">
+      <div class="hero-left">
+        <div class="hero-content">
+          <div class="hero-eyebrow">Bangkok's Premier Skin Clinic</div>
+          <h1 class="hero-title display">
+            Your skin deserves<br><em>expert care</em>
+          </h1>
+          <p class="hero-desc">
+            Science-backed treatments delivered by certified dermatologists.
+            From acne solutions to advanced brightening — your skin transformation starts here.
+          </p>
+          <div class="hero-actions">
+            <a href="/chatbot" class="btn btn-primary">Book a Consultation →</a>
+            <a href="/price" class="btn btn-outline">View Services</a>
+          </div>
+          <div class="hero-stats">
+            <div>
+              <div class="stat-num">5,000+</div>
+              <div class="stat-label">Happy Clients</div>
+            </div>
+            <div>
+              <div class="stat-num">14</div>
+              <div class="stat-label">Treatments</div>
+            </div>
+            <div>
+              <div class="stat-num">8 yrs</div>
+              <div class="stat-label">Experience</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="hero-visual">
+          <div class="hero-visual-icon"><i data-lucide="leaf"></i></div>
+          <div class="hero-visual-tagline">Glow with confidence</div>
+          <div class="hero-visual-sub">Advanced Dermatology</div>
+        </div>
+
+        <div class="floating-badge b1">
+          <div class="badge-icon"><i data-lucide="star"></i></div>
+          <div>
+            <div class="badge-val">4.9 / 5.0</div>
+            <div class="badge-label">Client Rating</div>
+          </div>
+        </div>
+
+        <div class="floating-badge b2">
+          <div class="badge-icon"><i data-lucide="shield-check"></i></div>
+          <div>
+            <div class="badge-val">FDA Approved</div>
+            <div class="badge-label">All treatments</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TRUST STRIP ───────────────────────────────────── -->
+    <div class="trust-strip">
+      <div class="container">
+        <div class="trust-inner">
+          <div class="trust-item"><span><i data-lucide="hospital"></i></span> Certified Dermatologists</div>
+          <div class="trust-item"><span><i data-lucide="microscope"></i></span> Medical-Grade Equipment</div>
+          <div class="trust-item"><span><i data-lucide="shield"></i></span> FDA-Approved Products</div>
+          <div class="trust-item"><span><i data-lucide="calendar"></i></span> Same-Week Appointments</div>
+          <div class="trust-item"><span><i data-lucide="message-circle"></i></span> AI-Powered Booking</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WHY US ────────────────────────────────────────── -->
+    <section>
+      <div class="container">
+        <div class="section-header fade-up">
+          <span class="section-label">Why Lumière</span>
+          <h2>Precision skincare,<br>proven results</h2>
+          <div class="divider"></div>
+          <p>Every treatment is tailored to your skin's unique needs by our team of certified specialists.</p>
+        </div>
+        <div class="why-grid">
+          <div class="why-card fade-up">
+            <div class="why-icon"><i data-lucide="microscope"></i></div>
+            <h3>Science-Based Approach</h3>
+            <p>All treatments are grounded in clinical research and use only medically certified products and technology.</p>
+          </div>
+          <div class="why-card fade-up">
+            <div class="why-icon"><i data-lucide="user-round"></i></div>
+            <h3>Expert Specialists</h3>
+            <p>Our dermatologists hold international certifications with over 8 years of combined clinical experience.</p>
+          </div>
+          <div class="why-card fade-up">
+            <div class="why-icon"><i data-lucide="bot"></i></div>
+            <h3>Smart AI Booking</h3>
+            <p>Our AI skin consultant helps you find the right treatment and books your appointment instantly — 24/7.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SERVICES PREVIEW ──────────────────────────────── -->
+    <section class="services-section">
+      <div class="container">
+        <div class="section-header center fade-up">
+          <span class="section-label">Our Treatments</span>
+          <h2>Popular services</h2>
+          <div class="divider"></div>
+          <p>Explore our most-loved treatments — from acne care to advanced brightening.</p>
+        </div>
+        <div class="svc-preview-grid">
+          <a href="/price" class="svc-preview-card fade-up">
+            <div class="svc-emoji"><i data-lucide="droplets"></i></div>
+            <h3>Acne Treatment Facial</h3>
+            <p>Deep cleansing for acne, blackheads, and whiteheads.</p>
+            <span class="svc-price">฿1,200</span>
+          </a>
+          <a href="/price" class="svc-preview-card fade-up">
+            <div class="svc-emoji"><i data-lucide="sparkles"></i></div>
+            <h3>Brightening Vitamin C</h3>
+            <p>Even skin tone and reduce dark spots with antioxidants.</p>
+            <span class="svc-price">฿1,500</span>
+          </a>
+          <a href="/price" class="svc-preview-card fade-up">
+            <div class="svc-emoji"><i data-lucide="droplet"></i></div>
+            <h3>Hydra Facial</h3>
+            <p>Deep hydration and cleansing for a dewy, healthy glow.</p>
+            <span class="svc-price">฿1,400</span>
+          </a>
+          <a href="/price" class="svc-preview-card fade-up">
+            <div class="svc-emoji"><i data-lucide="scan-line"></i></div>
+            <h3>Laser Pore Minimizing</h3>
+            <p>Medical-grade laser to visibly tighten and refine pores.</p>
+            <span class="svc-price">฿3,000</span>
+          </a>
+        </div>
+        <div class="services-cta fade-up">
+          <a href="/price" class="btn btn-outline">See All 14 Treatments →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA ───────────────────────────────────────────── -->
+    <section class="cta-section">
+      <div class="container">
+        <span class="section-label" style="color:rgba(255,255,255,0.4)">Get Started Today</span>
+        <h2 class="fade-up">Ready to transform your skin?</h2>
+        <p class="fade-up">Chat with our AI skin consultant — get a recommendation and book your slot in minutes.</p>
+        <a href="/chatbot" class="btn btn-accent fade-up">Chat with AI Consultant →</a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ── FOOTER ────────────────────────────────────────────── -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <div class="nav-logo">
+            <div class="nav-logo-mark">L</div>
+            <div>
+              <div class="nav-logo-text">Lumière</div>
+              <span class="nav-logo-sub" style="color:rgba(255,255,255,0.4)">Skin Clinic</span>
+            </div>
+          </div>
+          <p>Advanced dermatology and skin care in Bangkok. Science-backed treatments for lasting results.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Navigation</h4>
+          <a href="/">Home</a>
+          <a href="/price">Services</a>
+          <a href="/about">About</a>
+          <a href="/chatbot">Book Now</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <a href="#">Bangkok, Thailand</a>
+          <a href="#">Mon–Sat: 9AM – 5PM</a>
+          <a href="#">Closed Sundays</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 Lumière Skin Clinic. All rights reserved.</span>
+        <span>Made by William</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/script.js"></script>
+  <script src="assets/js/chatbot-widget.js"></script>
+    <script src="assets/js/auth-nav.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

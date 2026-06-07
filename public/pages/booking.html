@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lumière Clinic — Book an Appointment</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    [data-lucide]{width:1em;height:1em;vertical-align:middle;stroke-width:1.8;}
+
+    /* ── BOOKING PAGE ─────────────────────────────────────── */
+    .booking-page {
+      min-height: 100vh;
+      background: var(--off-white);
+      padding-top: var(--nav-h);
+    }
+
+    .booking-hero {
+      background: var(--navy);
+      padding: 56px 0 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .booking-hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 80% at 80% 50%, rgba(37,99,235,0.15) 0%, transparent 60%);
+    }
+    .booking-hero .container { position: relative; }
+    .booking-hero .section-label { color: rgba(255,255,255,0.4); }
+    .booking-hero h1 { color: var(--white); font-size: clamp(1.8rem, 3vw, 2.6rem); margin-bottom: 10px; }
+    .booking-hero p { color: rgba(255,255,255,0.55); font-size: 0.95rem; margin: 0; }
+    .booking-hero-note {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 20px;
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 99px;
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.55);
+    }
+    .booking-hero-note i { color: var(--gold); }
+
+    /* ── Steps indicator — redesigned ───────────────────── */
+    .steps-bar {
+      background: var(--white);
+      border-bottom: 1px solid var(--border);
+      padding: 0;
+    }
+    .steps-inner {
+      display: flex;
+      align-items: center;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+    }
+    /* Continuous track behind the steps */
+    .steps-inner::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: calc(24px + 13px);
+      right: calc(24px + 13px);
+      height: 2px;
+      background: var(--border);
+      transform: translateY(-50%);
+      z-index: 0;
+    }
+    /* Animated fill line */
+    .steps-progress-line {
+      position: absolute;
+      top: 50%;
+      left: calc(24px + 13px);
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--navy));
+      transform: translateY(-50%);
+      z-index: 1;
+      width: 0%;
+      transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 2px;
+    }
+    .step-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      padding: 20px 0;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 2;
+      transition: color 0.3s ease;
+      cursor: default;
+    }
+    .step-num {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--white);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+      transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+    /* Pulse ring on active */
+    .step-item.active .step-num::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 2px solid rgba(10,22,40,0.15);
+      animation: pulseRing 1.8s ease-out infinite;
+    }
+    @keyframes pulseRing {
+      0%   { opacity: 1;  transform: scale(1); }
+      70%  { opacity: 0;  transform: scale(1.5); }
+      100% { opacity: 0;  transform: scale(1.5); }
+    }
+    .step-item .step-label {
+      line-height: 1;
+      letter-spacing: 0.01em;
+      transition: color 0.3s ease;
+      white-space: nowrap;
+    }
+    .step-item.active { color: var(--navy); }
+    .step-item.active .step-num {
+      background: var(--navy);
+      border-color: var(--navy);
+      color: var(--white);
+      transform: scale(1.12);
+      box-shadow: 0 4px 14px rgba(10,22,40,0.25);
+    }
+    .step-item.done { color: var(--accent); }
+    .step-item.done .step-num {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--white);
+      transform: scale(1);
+    }
+
+    /* Main layout */
+    .booking-body {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 0 24px 64px;
+    }
+
+    /* Step panels — animated transitions */
+    .step-panel {
+      display: block;
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(48px);
+      transition: opacity 0s, transform 0s;
+      visibility: hidden;
+    }
+    .step-panel.active {
+      position: relative;
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(0);
+      visibility: visible;
+      transition: opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+                  transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .step-panel.exit-left {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-48px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      visibility: visible;
+    }
+    .step-panel.exit-right {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(48px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      visibility: visible;
+    }
+    /* Wrapper needed for absolute positioning during transition */
+    .booking-body {
+      position: relative;
+    }
+
+    /* Cards / sections */
+    .booking-section {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+    .booking-section-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: var(--navy);
+      margin-bottom: 4px;
+    }
+    .booking-section-sub {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    /* Service grid */
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .service-card {
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      cursor: pointer;
+      transition: all var(--transition);
+      position: relative;
+    }
+    .service-card:hover {
+      border-color: var(--accent);
+      background: var(--accent-pale);
+    }
+    .service-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-pale);
+    }
+    .service-card.selected::after {
+      content: '✓';
+      position: absolute;
+      top: 10px; right: 12px;
+      width: 20px; height: 20px;
+      background: var(--accent);
+      color: white;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .svc-cat-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .svc-name { font-size: 0.9rem; font-weight: 500; color: var(--navy); margin-bottom: 4px; }
+    .svc-meta { font-size: 0.78rem; color: var(--text-muted); }
+    .svc-price {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--navy);
+      margin-top: 8px;
+    }
+
+    /* Loading skeleton */
+    .skeleton {
+      background: linear-gradient(90deg, var(--border) 25%, var(--off-white) 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    .skeleton-card { height: 110px; border-radius: var(--radius-sm); }
+
+    /* Date picker */
+    .date-grid {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+      margin-bottom: 20px;
+    }
+    .date-grid::-webkit-scrollbar { display: none; }
+    .date-chip {
+      flex-shrink: 0;
+      width: 72px;
+      text-align: center;
+      padding: 12px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .date-chip:hover { border-color: var(--accent); }
+    .date-chip.selected { background: var(--navy); border-color: var(--navy); color: white; }
+    .date-chip .day-name { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6; }
+    .date-chip .day-num  { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 500; line-height: 1.2; }
+    .date-chip .day-month{ font-size: 0.68rem; opacity: 0.7; }
+    .date-chip.selected .day-name,
+    .date-chip.selected .day-month { opacity: 0.7; }
+
+    /* Time slots */
+    .time-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .time-chip {
+      padding: 10px 8px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: center;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all var(--transition);
+      position: relative;
+    }
+    .time-chip:hover:not(.unavailable) { border-color: var(--accent); background: var(--accent-pale); }
+    .time-chip.selected { background: var(--navy); border-color: var(--navy); color: white; }
+    .time-chip.unavailable { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+    .time-remaining { font-size: 0.68rem; font-weight: 400; opacity: 0.7; }
+
+    /* Form fields */
+    .field-group { margin-bottom: 18px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 7px;
+    }
+    .field-wrap { position: relative; }
+    .field-icon {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 0.9em;
+    }
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    textarea {
+      width: 100%;
+      padding: 11px 14px 11px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--white);
+      transition: border-color var(--transition), box-shadow var(--transition);
+      outline: none;
+    }
+    textarea { padding-left: 14px; resize: vertical; min-height: 88px; }
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+    }
+    input.error { border-color: #ef4444; }
+    .field-error { font-size: 0.76rem; color: #ef4444; margin-top: 5px; display: none; }
+    .field-error.show { display: block; }
+    .field-hint { font-size: 0.76rem; color: var(--text-muted); margin-top: 5px; }
+
+    /* Summary card */
+    .summary-card {
+      background: var(--sky);
+      border: 1px solid rgba(37,99,235,0.15);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 8px 0;
+      font-size: 0.875rem;
+    }
+    .summary-row:not(:last-child) { border-bottom: 1px solid rgba(37,99,235,0.1); }
+    .summary-label { color: var(--text-muted); }
+    .summary-value { font-weight: 500; color: var(--navy); text-align: right; max-width: 60%; }
+    .summary-total { font-size: 1rem; font-weight: 600; }
+
+    /* Nav buttons */
+    .step-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    .btn-step-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 11px 20px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-mid);
+      background: white;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
+    }
+    .btn-step-back:hover { border-color: var(--navy); color: var(--navy); }
+    .btn-step-next {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 28px;
+      background: var(--navy);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
+      flex: 1;
+      justify-content: center;
+      max-width: 280px;
+    }
+    .btn-step-next:hover:not(:disabled) {
+      background: var(--navy-mid);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(10,22,40,0.2);
+    }
+    .btn-step-next:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Alert */
+    .booking-alert {
+      display: none;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      align-items: center;
+      gap: 10px;
+    }
+    .booking-alert.show { display: flex; }
+    .booking-alert.error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+    .booking-alert.info { background: var(--accent-pale); border: 1px solid #bfdbfe; color: #1d4ed8; }
+
+    /* Confirmation screen */
+    .confirm-screen {
+      text-align: center;
+      padding: 48px 24px;
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+    .confirm-icon {
+      width: 72px; height: 72px;
+      background: #f0fdf4;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      color: #16a34a;
+      font-size: 2rem;
+    }
+    .confirm-ref {
+      font-family: 'DM Mono', monospace;
+      font-size: 1.1rem;
+      font-weight: 500;
+      background: var(--sky);
+      padding: 8px 20px;
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      margin: 12px 0;
+      color: var(--navy);
+    }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Logged-in bar */
+    .logged-in-bar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      color: #15803d;
+      margin-bottom: 20px;
+    }
+    .logged-in-bar.show { display: flex; }
+
+    @media (max-width: 640px) {
+      .service-grid { grid-template-columns: 1fr; }
+      .time-grid { grid-template-columns: repeat(2, 1fr); }
+      .field-row { grid-template-columns: 1fr; }
+      .step-item { padding: 16px 4px; font-size: 0.68rem; }
+      .step-label { display: none; }
+      .step-num { width: 26px; height: 26px; font-size: 0.7rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── NAV ─────────────────────────────────────────────── -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <div class="nav-logo-mark">L</div>
+        <div>
+          <div class="nav-logo-text">Lumière</div>
+          <span class="nav-logo-sub">Skin Clinic</span>
+        </div>
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/price">Services</a>
+        <a href="/about">About</a>
+        <a href="/login" id="nav-auth-link">Sign In</a>
+        <a href="/booking" class="nav-cta active">Book Now</a>
+      </div>
+      <button class="hamburger" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+  <div class="mobile-menu">
+    <a href="/">Home</a>
+    <a href="/price">Services</a>
+    <a href="/about">About</a>
+    <a href="/login" id="mobile-auth-link">Sign In</a>
+    <button id="mobile-logout-btn" onclick="navLogout()">⬅ Logout</button>
+    <a href="/booking" class="nav-cta active">Book Now</a>
+  </div>
+
+  <div class="booking-page">
+
+    <!-- Hero -->
+    <div class="booking-hero">
+      <div class="container">
+        <span class="section-label">Quick Booking</span>
+        <h1 class="display">Book an Appointment</h1>
+        <p>No account needed — choose a service, pick a time, and confirm. Done in 2 minutes.</p>
+        <div class="booking-hero-note" id="hero-signin-note">
+          <i data-lucide="info"></i>
+          Want to book, cancel & reschedule via our AI assistant?
+          <a href="/login" style="color:var(--gold);margin-left:2px;">Sign in →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Steps bar -->
+    <div class="steps-bar">
+      <div class="steps-inner">
+        <div class="steps-progress-line" id="steps-progress-line"></div>
+        <div class="step-item active" id="step-ind-1">
+          <div class="step-num" id="step-num-1">1</div>
+          <span class="step-label">Service</span>
+        </div>
+        <div class="step-item" id="step-ind-2">
+          <div class="step-num" id="step-num-2">2</div>
+          <span class="step-label">Date &amp; Time</span>
+        </div>
+        <div class="step-item" id="step-ind-3">
+          <div class="step-num" id="step-num-3">3</div>
+          <span class="step-label">Your Details</span>
+        </div>
+        <div class="step-item" id="step-ind-4">
+          <div class="step-num" id="step-num-4">4</div>
+          <span class="step-label">Confirm</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="booking-body">
+
+      <!-- ── STEP 1: Choose service ─────────────────────── -->
+      <div class="step-panel active" id="step-1">
+        <div class="booking-section">
+          <div class="booking-section-title">Choose a Service</div>
+          <div class="booking-section-sub">Select the treatment you'd like to book</div>
+          <div class="booking-alert error" id="svc-alert">
+            <i data-lucide="alert-circle"></i> Please select a service to continue.
+          </div>
+          <div class="service-grid" id="service-grid">
+            <!-- Skeletons while loading -->
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+          </div>
+        </div>
+        <div class="step-nav">
+          <div></div>
+          <button class="btn-step-next" onclick="goToStep(2)">
+            Continue <i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STEP 2: Date & Time ─────────────────────────── -->
+      <div class="step-panel" id="step-2">
+        <div class="booking-section">
+          <div class="booking-section-title">Pick a Date</div>
+          <div class="booking-section-sub">Next 7 days — closed Sundays</div>
+          <div class="date-grid" id="date-grid">
+            <div class="skeleton" style="height:72px;width:72px;flex-shrink:0;border-radius:8px;"></div>
+            <div class="skeleton" style="height:72px;width:72px;flex-shrink:0;border-radius:8px;"></div>
+            <div class="skeleton" style="height:72px;width:72px;flex-shrink:0;border-radius:8px;"></div>
+            <div class="skeleton" style="height:72px;width:72px;flex-shrink:0;border-radius:8px;"></div>
+            <div class="skeleton" style="height:72px;width:72px;flex-shrink:0;border-radius:8px;"></div>
+          </div>
+
+          <div class="booking-section-title" style="margin-top:8px;">Pick a Time</div>
+          <div class="booking-section-sub" id="time-sub">Select a date to see available times</div>
+          <div class="booking-alert info" id="slot-info" style="display:none;">
+            <i data-lucide="clock"></i> All times are in Bangkok time (UTC+7)
+          </div>
+          <div class="time-grid" id="time-grid">
+            <div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text-muted);font-size:0.85rem;">
+              Select a date above to see available slots
+            </div>
+          </div>
+        </div>
+        <div class="booking-alert error" id="slot-alert">
+          <i data-lucide="alert-circle"></i> Please select both a date and time.
+        </div>
+        <div class="step-nav">
+          <button class="btn-step-back" onclick="goToStep(1)"><i data-lucide="arrow-left"></i> Back</button>
+          <button class="btn-step-next" onclick="goToStep(3)">
+            Continue <i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STEP 3: Your details ─────────────────────────── -->
+      <div class="step-panel" id="step-3">
+        <div class="logged-in-bar" id="logged-in-bar">
+          <i data-lucide="user-check"></i>
+          <span id="logged-in-msg">You're signed in — your details are prefilled.</span>
+        </div>
+        <div class="booking-section">
+          <div class="booking-section-title">Your Details</div>
+          <div class="booking-section-sub">So we can confirm and contact you about your appointment</div>
+
+          <div class="field-row">
+            <div class="field-group">
+              <label for="guest-name">Full name *</label>
+              <div class="field-wrap">
+                <span class="field-icon"><i data-lucide="user"></i></span>
+                <input type="text" id="guest-name" placeholder="Jane Smith" />
+              </div>
+              <div class="field-error" id="err-name">Name is required.</div>
+            </div>
+            <div class="field-group">
+              <label for="guest-phone">Phone number *</label>
+              <div class="field-wrap">
+                <span class="field-icon"><i data-lucide="phone"></i></span>
+                <input type="tel" id="guest-phone" placeholder="08X-XXX-XXXX" />
+              </div>
+              <div class="field-error" id="err-phone">Valid phone number required.</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="guest-email">Email address <span style="color:var(--text-muted);font-weight:400;">(optional — for confirmation)</span></label>
+            <div class="field-wrap">
+              <span class="field-icon"><i data-lucide="mail"></i></span>
+              <input type="email" id="guest-email" placeholder="you@example.com" />
+            </div>
+            <div class="field-error" id="err-email">Please enter a valid email.</div>
+          </div>
+
+          <div class="field-group">
+            <label for="guest-notes">Additional notes <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+            <textarea id="guest-notes" placeholder="Any allergies, skin conditions, or questions for the dermatologist…"></textarea>
+          </div>
+        </div>
+        <div class="step-nav">
+          <button class="btn-step-back" onclick="goToStep(2)"><i data-lucide="arrow-left"></i> Back</button>
+          <button class="btn-step-next" onclick="goToStep(4)">
+            Review Booking <i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STEP 4: Confirm ─────────────────────────────── -->
+      <div class="step-panel" id="step-4">
+        <div class="booking-section">
+          <div class="booking-section-title">Review & Confirm</div>
+          <div class="booking-section-sub">Please check your details before confirming</div>
+
+          <div class="summary-card" id="summary-card">
+            <div class="summary-row">
+              <span class="summary-label">Service</span>
+              <span class="summary-value" id="sum-service">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Date & Time</span>
+              <span class="summary-value" id="sum-datetime">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Name</span>
+              <span class="summary-value" id="sum-name">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label">Phone</span>
+              <span class="summary-value" id="sum-phone">—</span>
+            </div>
+            <div class="summary-row" id="sum-email-row" style="display:none;">
+              <span class="summary-label">Email</span>
+              <span class="summary-value" id="sum-email">—</span>
+            </div>
+            <div class="summary-row">
+              <span class="summary-label summary-total">Total</span>
+              <span class="summary-value summary-total" id="sum-price">—</span>
+            </div>
+          </div>
+
+          <div class="booking-alert error" id="confirm-alert">
+            <i data-lucide="alert-circle"></i> <span id="confirm-alert-msg"></span>
+          </div>
+
+          <p style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;margin-top:4px;">
+            By confirming you agree to our cancellation policy. Appointments can be cancelled up to 24 hours in advance.
+          </p>
+        </div>
+        <div class="step-nav">
+          <button class="btn-step-back" onclick="goToStep(3)"><i data-lucide="arrow-left"></i> Back</button>
+          <button class="btn-step-next" id="btn-confirm" onclick="confirmBooking()">
+            Confirm Booking <i data-lucide="check"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── STEP 5: Success ─────────────────────────────── -->
+      <div class="step-panel" id="step-5">
+        <div class="confirm-screen">
+          <div class="confirm-icon"><i data-lucide="check-circle"></i></div>
+          <span class="section-label">Booking Confirmed</span>
+          <h2 style="color:var(--navy);margin-bottom:8px;">You're all set!</h2>
+          <p style="max-width:380px;margin:0 auto 16px;">Your appointment has been booked. Please save your reference number.</p>
+          <div class="confirm-ref" id="confirm-ref">TCB-XXXXXXXX-001</div>
+          <div style="background:var(--off-white);border-radius:var(--radius-sm);padding:16px;margin:20px 0;text-align:left;">
+            <div class="summary-row" style="padding:6px 0;">
+              <span class="summary-label" style="font-size:0.82rem;">Service</span>
+              <span class="summary-value" style="font-size:0.82rem;" id="conf-service">—</span>
+            </div>
+            <div class="summary-row" style="padding:6px 0;border-bottom:none;">
+              <span class="summary-label" style="font-size:0.82rem;">Date & Time</span>
+              <span class="summary-value" style="font-size:0.82rem;" id="conf-datetime">—</span>
+            </div>
+          </div>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:28px;">
+            We'll see you then! For changes or cancellations, please call us or
+            <a href="/login" style="color:var(--accent);">sign in to manage via the AI assistant</a>.
+          </p>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <a href="/" class="btn btn-outline">Back to Home</a>
+            <a href="/chatbot" class="btn btn-primary">Chat with AI Assistant →</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="../assets/js/script.js"></script>
+  <script src="../assets/js/auth-nav.js"></script>
+  <script>
+    const API_BASE = 'http://localhost:3000'
+
+    let state = {
+      currentStep: 1,
+      selectedServiceId: null,
+      selectedServiceName: null,
+      selectedServicePrice: null,
+      selectedDate: null,
+      selectedSlotDatetime: null,
+      selectedSlotDisplay: null,
+      allSlots: [],
+    }
+
+    // ── Nav auth state ────────────────────────────────────
+    function initAuth() {
+      const user = JSON.parse(localStorage.getItem('lc_user') || 'null')
+      if (user) {
+        document.getElementById('nav-auth-link').textContent = user.displayName.split(' ')[0]
+        document.getElementById('mobile-auth-link').textContent = user.displayName.split(' ')[0]
+        // Prefill step 3
+        document.getElementById('guest-name').value  = user.displayName || ''
+        document.getElementById('guest-phone').value = user.phone || ''
+        document.getElementById('guest-email').value = user.email || ''
+        document.getElementById('logged-in-bar').classList.add('show')
+        document.getElementById('logged-in-msg').textContent =
+          `Signed in as ${user.displayName} — your details are prefilled.`
+      }
+    }
+
+    // ── Load services ─────────────────────────────────────
+    async function loadServices() {
+      try {
+        const res  = await fetch(`${API_BASE}/appointments/services`)
+        const data = await res.json()
+        renderServices(data.services || [])
+      } catch {
+        // Fallback demo data so the UI works even without server
+        renderServices([
+          { id:'1', name:'Acne Treatment',          category:'Medical',    price:2500, duration_min:60 },
+          { id:'2', name:'Brightening Vitamin C',   category:'Brightening',price:1500, duration_min:60 },
+          { id:'3', name:'Hydra Facial',             category:'Hydration',  price:1400, duration_min:60 },
+          { id:'4', name:'Laser Pore Minimizing',   category:'Laser',      price:3000, duration_min:60 },
+          { id:'5', name:'Anti-Aging Peptide Boost',category:'Anti-Aging', price:2800, duration_min:60 },
+          { id:'6', name:'Microdermabrasion',       category:'Medical',    price:1800, duration_min:60 },
+        ])
+      }
+    }
+
+    function renderServices(services) {
+      const grid = document.getElementById('service-grid')
+      grid.innerHTML = ''
+      services.forEach((svc, idx) => {
+        const card = document.createElement('div')
+        card.className = 'service-card'
+        card.dataset.id    = svc.id
+        card.dataset.name  = svc.name
+        card.dataset.price = svc.price
+        card.style.opacity = '0'
+        card.style.transform = 'translateY(16px)'
+        card.style.transition = `opacity 0.35s ease ${idx * 0.06}s, transform 0.35s ease ${idx * 0.06}s, border-color 0.25s, background 0.25s, box-shadow 0.25s`
+        card.innerHTML = `
+          <div class="svc-cat-badge">${svc.category}</div>
+          <div class="svc-name">${svc.name}</div>
+          <div class="svc-meta">${svc.duration_min || 60} min session</div>
+          <div class="svc-price">฿${Number(svc.price).toLocaleString()}</div>
+        `
+        card.addEventListener('click', () => selectService(card, svc))
+        grid.appendChild(card)
+        // Trigger entrance
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          card.style.opacity = '1'
+          card.style.transform = 'translateY(0)'
+        }))
+      })
+    }
+
+    function selectService(card, svc) {
+      document.querySelectorAll('.service-card').forEach(c => c.classList.remove('selected'))
+      card.classList.add('selected')
+      // Quick pop animation
+      card.style.transform = 'scale(0.97)'
+      setTimeout(() => { card.style.transform = '' }, 120)
+      state.selectedServiceId    = svc.id
+      state.selectedServiceName  = svc.name
+      state.selectedServicePrice = svc.price
+      document.getElementById('svc-alert').classList.remove('show')
+    }
+
+    // ── Load slots ────────────────────────────────────────
+    async function loadSlots() {
+      try {
+        const res  = await fetch(`${API_BASE}/appointments/slots?days=7`)
+        const data = await res.json()
+        state.allSlots = data.slots || []
+      } catch {
+        // Demo fallback
+        state.allSlots = generateDemoSlots()
+      }
+      renderDateGrid()
+    }
+
+    function generateDemoSlots() {
+      const slots = []
+      const times = ['9:00 AM - 10:00 AM','10:05 AM - 11:05 AM','11:10 AM - 12:10 PM',
+                     '1:05 PM - 2:05 PM','2:10 PM - 3:10 PM','3:15 PM - 4:15 PM','4:20 PM - 5:20 PM']
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(); d.setDate(d.getDate() + i)
+        if (d.getDay() === 0) continue
+        const dateStr = d.toISOString().split('T')[0]
+        slots.push({
+          date: dateStr,
+          dayName: d.toLocaleDateString('en-US', { weekday:'long' }),
+          slots: times.map((t, ti) => ({
+            datetime:    dateStr + 'T' + ['02:00','03:05','04:10','06:05','07:10','08:15','09:20'][ti] + ':00Z',
+            display:     t,
+            date:        dateStr,
+            remaining:   Math.random() > 0.3 ? 2 : 0,
+            isAvailable: Math.random() > 0.3,
+          }))
+        })
+      }
+      return slots
+    }
+
+    function renderDateGrid() {
+      const grid = document.getElementById('date-grid')
+      grid.innerHTML = ''
+      state.allSlots.forEach(day => {
+        const d    = new Date(day.date + 'T12:00:00Z')
+        const chip = document.createElement('div')
+        chip.className    = 'date-chip'
+        chip.dataset.date = day.date
+        chip.innerHTML = `
+          <div class="day-name">${d.toLocaleDateString('en-US',{weekday:'short'})}</div>
+          <div class="day-num">${d.getUTCDate()}</div>
+          <div class="day-month">${d.toLocaleDateString('en-US',{month:'short'})}</div>
+        `
+        chip.addEventListener('click', () => selectDate(chip, day))
+        grid.appendChild(chip)
+      })
+    }
+
+    function selectDate(chip, day) {
+      document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('selected'))
+      chip.classList.add('selected')
+      state.selectedDate         = day.date
+      state.selectedSlotDatetime = null
+      state.selectedSlotDisplay  = null
+      renderTimeGrid(day.slots)
+      document.getElementById('slot-info').style.display = 'flex'
+      document.getElementById('time-sub').textContent    = `${day.dayName} — ${day.date}`
+    }
+
+    function renderTimeGrid(slots) {
+      const grid = document.getElementById('time-grid')
+      grid.innerHTML = ''
+      slots.forEach(slot => {
+        const chip = document.createElement('div')
+        chip.className = 'time-chip' + (slot.isAvailable ? '' : ' unavailable')
+        chip.innerHTML = `
+          ${slot.display}
+          ${slot.isAvailable ? `<div class="time-remaining">${slot.remaining} left</div>` : '<div class="time-remaining">Full</div>'}
+        `
+        if (slot.isAvailable) {
+          chip.addEventListener('click', () => selectSlot(chip, slot))
+        }
+        grid.appendChild(chip)
+      })
+    }
+
+    function selectSlot(chip, slot) {
+      document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('selected'))
+      chip.classList.add('selected')
+      state.selectedSlotDatetime = slot.datetime
+      state.selectedSlotDisplay  = slot.display
+      document.getElementById('slot-alert').classList.remove('show')
+    }
+
+    // ── Step navigation ───────────────────────────────────
+    function updateProgressLine(n) {
+      const line = document.getElementById('steps-progress-line')
+      if (!line) return
+      // Progress: step 1 = 0%, step 2 = 33%, step 3 = 66%, step 4 = 100%
+      const pct = ((n - 1) / 3) * 100
+      line.style.width = pct + '%'
+    }
+
+    function goToStep(n) {
+      if (n > state.currentStep) {
+        if (state.currentStep === 1 && !state.selectedServiceId) {
+          document.getElementById('svc-alert').classList.add('show'); return
+        }
+        if (state.currentStep === 2 && (!state.selectedDate || !state.selectedSlotDatetime)) {
+          document.getElementById('slot-alert').classList.add('show'); return
+        }
+        if (state.currentStep === 3) {
+          if (!validateDetails()) return
+        }
+      }
+
+      const direction = n > state.currentStep ? 1 : -1
+
+      // Update step indicator
+      for (let i = 1; i <= 4; i++) {
+        const ind = document.getElementById('step-ind-' + i)
+        const num = document.getElementById('step-num-' + i)
+        ind.className = 'step-item'
+        if (i < n) {
+          ind.classList.add('done')
+          num.innerHTML = '<i data-lucide="check" style="width:.75em;height:.75em;"></i>'
+        } else if (i === n) {
+          ind.classList.add('active')
+          num.textContent = i
+        } else {
+          num.textContent = i
+        }
+      }
+      lucide.createIcons()
+      updateProgressLine(n)
+
+      // Animate panels
+      const currentPanel = document.getElementById('step-' + state.currentStep)
+      const nextPanel    = document.getElementById('step-' + n)
+
+      // Reset next panel to its incoming start position (offscreen)
+      nextPanel.classList.remove('active', 'exit-left', 'exit-right')
+      nextPanel.style.transform = direction > 0 ? 'translateX(48px)' : 'translateX(-48px)'
+      nextPanel.style.opacity   = '0'
+      nextPanel.style.visibility = 'visible'
+      nextPanel.style.position  = 'absolute'
+      nextPanel.style.pointerEvents = 'none'
+
+      // Exit the current panel
+      currentPanel.classList.remove('active')
+      currentPanel.classList.add(direction > 0 ? 'exit-left' : 'exit-right')
+
+      // Small tick to allow exit transition to begin, then slide in next
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          nextPanel.style.transform = ''
+          nextPanel.style.opacity   = ''
+          nextPanel.style.visibility = ''
+          nextPanel.style.position  = ''
+          nextPanel.style.pointerEvents = ''
+          nextPanel.classList.add('active')
+
+          setTimeout(() => {
+            currentPanel.classList.remove('exit-left', 'exit-right')
+          }, 320)
+        })
+      })
+
+      state.currentStep = n
+      if (n === 4) fillSummary()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
+    function validateDetails() {
+      let ok = true
+      const name  = document.getElementById('guest-name').value.trim()
+      const phone = document.getElementById('guest-phone').value.trim()
+      const email = document.getElementById('guest-email').value.trim()
+
+      document.querySelectorAll('#step-3 .field-error').forEach(e => e.classList.remove('show'))
+
+      if (!name) { document.getElementById('err-name').classList.add('show'); ok = false }
+      if (!phone || !/^[0-9+\-\s]{7,15}$/.test(phone)) { document.getElementById('err-phone').classList.add('show'); ok = false }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('err-email').classList.add('show'); ok = false }
+      return ok
+    }
+
+    function fillSummary() {
+      const d = new Date(state.selectedDate + 'T12:00:00Z')
+      const dateStr = d.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
+
+      document.getElementById('sum-service').textContent  = state.selectedServiceName
+      document.getElementById('sum-datetime').textContent = `${dateStr}\n${state.selectedSlotDisplay}`
+      document.getElementById('sum-name').textContent     = document.getElementById('guest-name').value.trim()
+      document.getElementById('sum-phone').textContent    = document.getElementById('guest-phone').value.trim()
+      document.getElementById('sum-price').textContent    = `฿${Number(state.selectedServicePrice).toLocaleString()}`
+
+      const email = document.getElementById('guest-email').value.trim()
+      const emailRow = document.getElementById('sum-email-row')
+      if (email) {
+        emailRow.style.display = 'flex'
+        document.getElementById('sum-email').textContent = email
+      } else {
+        emailRow.style.display = 'none'
+      }
+    }
+
+    // ── Confirm booking ───────────────────────────────────
+    async function confirmBooking() {
+      const btn = document.getElementById('btn-confirm')
+      btn.disabled = true
+      btn.innerHTML = '<span class="spinner"></span> Booking…'
+      document.getElementById('confirm-alert').classList.remove('show')
+
+      const payload = {
+        serviceId:     state.selectedServiceId,
+        slotDatetime:  state.selectedSlotDatetime,
+        guestName:     document.getElementById('guest-name').value.trim(),
+        guestPhone:    document.getElementById('guest-phone').value.trim(),
+        guestEmail:    document.getElementById('guest-email').value.trim() || undefined,
+        notes:         document.getElementById('guest-notes').value.trim() || undefined,
+      }
+
+      // Determine endpoint — use /book if logged in, /book-guest if not
+      const token    = localStorage.getItem('lc_token')
+      const endpoint = token ? `${API_BASE}/appointments/book` : `${API_BASE}/appointments/book-guest`
+      const headers  = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = 'Bearer ' + token
+
+      try {
+        const res  = await fetch(endpoint, { method:'POST', headers, body: JSON.stringify(payload) })
+        const data = await res.json()
+
+        if (data.success) {
+          // Show success step
+          const d = new Date(state.selectedDate + 'T12:00:00Z')
+          const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })
+          document.getElementById('confirm-ref').textContent      = data.appointment.bookingRef
+          document.getElementById('conf-service').textContent     = data.appointment.service
+          document.getElementById('conf-datetime').textContent    = `${dateStr} · ${state.selectedSlotDisplay}`
+          document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'))
+          document.getElementById('step-5').classList.add('active')
+          // Mark all steps done
+          for (let i = 1; i <= 4; i++) {
+            document.getElementById('step-ind-' + i).className = 'step-item done'
+            document.getElementById('step-num-' + i).innerHTML = '<i data-lucide="check" style="width:.75em;height:.75em;"></i>'
+          }
+          lucide.createIcons()
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        } else {
+          showConfirmError(data.message || 'Booking failed. Please try again.')
+          btn.disabled = false
+          btn.innerHTML = 'Confirm Booking <i data-lucide="check"></i>'
+          lucide.createIcons()
+        }
+      } catch {
+        showConfirmError('Could not reach the server. Please try again.')
+        btn.disabled = false
+        btn.innerHTML = 'Confirm Booking <i data-lucide="check"></i>'
+        lucide.createIcons()
+      }
+    }
+
+    function showConfirmError(msg) {
+      const el = document.getElementById('confirm-alert')
+      document.getElementById('confirm-alert-msg').textContent = msg
+      el.classList.add('show')
+    }
+
+    // ── Init ──────────────────────────────────────────────
+    window.addEventListener('DOMContentLoaded', () => {
+      initAuth()
+      loadServices()
+      loadSlots()
+      updateProgressLine(1)
+    })
+  </script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
