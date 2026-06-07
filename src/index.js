@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000
 app.use(cors({
   origin: [
     'http://localhost:3000',
-    'https://ai-chat-bot-clinic.vercel.app/'  // your actual Vercel URL
+    'https://ai-chat-bot-clinic.vercel.app'  // your actual Vercel URL
   ]
 }))
 app.use(express.json())
