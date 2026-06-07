@@ -1,10 +1,10 @@
 {
-  "rewrites": [
-    { "source": "/",        "destination": "/public/index.html" },
-    { "source": "/price",   "destination": "/public/pages/price.html" },
-    { "source": "/about",   "destination": "/public/pages/about.html" },
-    { "source": "/booking", "destination": "/public/pages/booking.html" },
-    { "source": "/login",   "destination": "/public/pages/login.html" },
-    { "source": "/chatbot", "destination": "/public/pages/chatbot.html" }
+  "routes": [
+    { "src": "/",        "dest": "/public/index.html" },
+    { "src": "/price",   "dest": "/public/pages/price.html" },
+    { "src": "/about",   "dest": "/public/pages/about.html" },
+    { "src": "/booking", "dest": "/public/pages/booking.html" },
+    { "src": "/login",   "dest": "/public/pages/login.html" },
+    { "src": "/chatbot", "dest": "/public/pages/chatbot.html" }
   ]
 }
