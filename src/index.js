@@ -14,10 +14,19 @@ const PORT = process.env.PORT || 3000
 //  MIDDLEWARE
 // ============================================================
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'https://ai-chat-bot-clinic.vercel.app'  // your actual Vercel URL
-  ]
+  origin: function(origin, callback) {
+    const allowed = [
+      'http://localhost:3000',
+      'https://ai-chat-bot-clinic.vercel.app'
+    ]
+    // Also allow Vercel preview deployments
+    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true
 }))
 app.use(express.json())
 app.use(express.static(path.join(__dirname, '../public'), { index: false }))
