@@ -599,6 +599,7 @@
             <div class="chat-header-sub"><span class="online-dot"></span>AI Assistant · Lumière Clinic</div>
           </div>
           <button id="authStatusBtn" class="guest" onclick="openAuthModal()"><i data-lucide="log-in" style="width:10px;height:10px;vertical-align:middle;margin-right:2px;"></i> Login</button>
+          <div id="serverStatusPill" style="font-size:9.5px;font-weight:500;padding:4px 10px;border-radius:20px;white-space:nowrap;background:rgba(201,168,76,0.18);color:rgba(201,168,76,0.9);border:1px solid rgba(201,168,76,0.3);">⏳ Warming up…</div>
           <div class="msg-counter-pill" id="msgCounter">20 left</div>
         </div>
 
@@ -783,6 +784,27 @@ I'm your AI skin consultant. I can help you with:
   //  API CONFIGURATION
   // ═══════════════════════════════════════════════════════════
   const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+
+  // ── Wake up Render on page load (free tier spins down) ──────
+  let serverReady = false
+  async function wakeServer() {
+    const pill = document.getElementById('serverStatusPill')
+    try {
+      const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(30000) })
+      if (r.ok) {
+        serverReady = true
+        if (pill) pill.remove()
+      } else { throw new Error('not ok') }
+    } catch {
+      if (pill) {
+        pill.textContent = '⚠ Server offline'
+        pill.style.background = 'rgba(180,60,60,0.18)'
+        pill.style.color = 'rgba(220,100,100,0.9)'
+        pill.style.borderColor = 'rgba(180,60,60,0.3)'
+      }
+    }
+  }
+  wakeServer()
 
   // ═══════════════════════════════════════════════════════════
   //  AUTH STATE
@@ -1425,6 +1447,24 @@ How can I help you today?`
     $charLine.textContent = '0 / 100'; $charLine.className = 'char-line'
 
     isLoading = true; $send.disabled = true; setTyping(true)
+
+    // If server is still waking up, wait for it (up to 30s)
+    if (!serverReady) {
+      addBubble('⏳ Server is warming up, please wait a moment…', 'bot')
+      const waitStart = Date.now()
+      while (!serverReady && Date.now() - waitStart < 28000) {
+        await new Promise(r => setTimeout(r, 800))
+      }
+      if (!serverReady) {
+        setTyping(false)
+        addBubble('The server is taking too long to wake up. Please try again in a moment 🔌', 'bot')
+        isLoading = false; $send.disabled = false; $input.focus()
+        return
+      }
+      // Remove the warming-up bubble
+      const warmBubble = $msgs.querySelector('.msg-row.bot:last-of-type')
+      if (warmBubble && warmBubble.textContent.includes('warming up')) warmBubble.remove()
+    }
 
     try {
       const headers = { 'Content-Type': 'application/json' }
