@@ -12,6 +12,20 @@
 // ============================================================
 ;(function () {
 
+  // ── Backend URL ────────────────────────────────────────────
+  const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+
+  // ── Wake up Render on load (free tier spins down) ──────────
+  let cwServerReady = false
+  async function cwWakeServer() {
+    try {
+      const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(30000) })
+      if (r.ok) cwServerReady = true
+    } catch {}
+  }
+  cwWakeServer()
+
+
   // ── Inject HTML ────────────────────────────────────────────
   const markup = `
   <!-- FAB -->
@@ -234,7 +248,7 @@ I'm your AI skin consultant. I can help you with:
 
   async function cwVerifyToken() {
     try {
-      const r = await fetch('/auth/me', { headers: { Authorization: `Bearer ${cwToken}` } })
+      const r = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${cwToken}` } })
       const d = await r.json()
       if (d.success) {
         cwUser     = d.user
@@ -310,7 +324,7 @@ How can I help you today?`
     const btn = document.getElementById('cw-login-btn')
     btn.disabled = true; btn.textContent = 'Logging in…'
     try {
-      const r = await fetch('/auth/login', {
+      const r = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       })
@@ -344,7 +358,7 @@ How can I help you today?`
     const btn = document.getElementById('cw-reg-btn')
     btn.disabled = true; btn.textContent = 'Creating account…'
     try {
-      const r = await fetch('/auth/register', {
+      const r = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, idNumber, password })
       })
@@ -489,7 +503,7 @@ How can I help you today?`
   window.cwShowAllServices = async function(filterCat = null) {
     if (cwAllServices.length === 0) {
       try {
-        const r = await fetch('/appointments/services')
+        const r = await fetch(`${API_BASE}/appointments/services`)
         const d = await r.json()
         if (d.success) cwAllServices = d.services
       } catch { cwAddBubble('Could not load services. Please try again.', 'bot'); return }
@@ -573,7 +587,7 @@ How can I help you today?`
 
     const loader = cwAddWidget('<div style="text-align:center;padding:14px;font-size:11.5px;color:var(--cw-muted)">Loading slots…</div>')
     try {
-      const r = await fetch(`/appointments/slots?days=30`)
+      const r = await fetch(`${API_BASE}/appointments/slots?days=30`)
       const d = await r.json()
       loader.remove()
       if (!d.success) { cwAddBubble('Could not load slots. Please try again.', 'bot'); return }
@@ -653,7 +667,7 @@ How can I help you today?`
         cwAddBubble(slotLabel, 'user')
         cwIsLoading = true; cwSetTyping(true)
         try {
-          const r = await fetch('/chat', {
+          const r = await fetch(`${API_BASE}/chat`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cwToken}` },
             body: JSON.stringify({ message: `Book ${thaiSlot}`, sessionId: cwSessionId })
           })
@@ -671,7 +685,7 @@ How can I help you today?`
       const btn = document.getElementById('cw-confirm-btn')
       if (btn) { btn.disabled = true; btn.textContent = 'Booking…' }
       try {
-        const r = await fetch('/appointments/book', {
+        const r = await fetch(`${API_BASE}/appointments/book`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cwToken}` },
           body: JSON.stringify({ serviceId: cwPendingServiceId, slotDatetime: cwPendingSlot })
@@ -730,7 +744,7 @@ How can I help you today?`
     errEl.classList.remove('show')
 
     try {
-      const r = await fetch('/appointments/book-guest', {
+      const r = await fetch(`${API_BASE}/appointments/book-guest`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           guestName, guestPhone, guestEmail: guestEmail || null, notes: notes || null,
@@ -783,7 +797,7 @@ How can I help you today?`
     if (!cwLoggedIn) { cwOpenAuth(); return }
     const loader = cwAddWidget('<div style="text-align:center;padding:14px;font-size:11.5px;color:var(--cw-muted)">Loading your appointments…</div>')
     try {
-      const r = await fetch('/appointments/my', { headers: { Authorization: `Bearer ${cwToken}` } })
+      const r = await fetch(`${API_BASE}/appointments/my`, { headers: { Authorization: `Bearer ${cwToken}` } })
       const d = await r.json()
       loader.remove()
       const confirmed = (d.appointments || []).filter(a => a.status === 'confirmed')
@@ -810,7 +824,7 @@ How can I help you today?`
   async function cwShowBookingReceipt(bookingRef) {
     if (!cwLoggedIn) return
     try {
-      const r = await fetch('/appointments/my', { headers: { Authorization: `Bearer ${cwToken}` } })
+      const r = await fetch(`${API_BASE}/appointments/my`, { headers: { Authorization: `Bearer ${cwToken}` } })
       const d = await r.json()
       if (!d.success) return
       const appt = (d.appointments || []).find(a => a.booking_ref === bookingRef)
@@ -913,11 +927,25 @@ How can I help you today?`
 
     cwIsLoading = true; $send.disabled = true; cwSetTyping(true)
 
+    // Wait for Render to wake up if still cold-starting
+    if (!cwServerReady) {
+      const t0 = Date.now()
+      while (!cwServerReady && Date.now() - t0 < 28000) {
+        await new Promise(r => setTimeout(r, 800))
+      }
+      if (!cwServerReady) {
+        cwSetTyping(false)
+        cwAddBubble('Server is starting up — please try again in a moment 🔌', 'bot')
+        cwIsLoading = false; $send.disabled = false
+        return
+      }
+    }
+
     try {
       const headers = { 'Content-Type': 'application/json' }
       if (cwToken) headers['Authorization'] = `Bearer ${cwToken}`
 
-      const r = await fetch('/chat', {
+      const r = await fetch(`${API_BASE}/chat`, {
         method: 'POST', headers,
         body: JSON.stringify({ message: msg, sessionId: cwSessionId })
       })
