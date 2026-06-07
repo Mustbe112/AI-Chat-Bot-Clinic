@@ -780,6 +780,11 @@ I'm your AI skin consultant. I can help you with:
   <script src="../assets/js/script.js"></script>
   <script>
   // ═══════════════════════════════════════════════════════════
+  //  API CONFIGURATION
+  // ═══════════════════════════════════════════════════════════
+  const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+
+  // ═══════════════════════════════════════════════════════════
   //  AUTH STATE
   // ═══════════════════════════════════════════════════════════
   let authToken  = localStorage.getItem('lc_token') || null
@@ -803,7 +808,7 @@ I'm your AI skin consultant. I can help you with:
 
   async function verifyToken() {
     try {
-      const r = await fetch('/auth/me', { headers: { Authorization: `Bearer ${authToken}` } })
+      const r = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${authToken}` } })
       const d = await r.json()
       if (d.success) { authUser = d.user; isLoggedIn = true; updateAuthUI() }
       else { authToken = null; localStorage.removeItem('lc_token') }
@@ -871,7 +876,7 @@ How can I help you today?`
     const btn = document.getElementById('loginBtn')
     btn.disabled = true; btn.textContent = 'Logging in…'
     try {
-      const r = await fetch('/auth/login', {
+      const r = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       })
@@ -899,7 +904,7 @@ How can I help you today?`
     const btn = document.getElementById('regBtn')
     btn.disabled = true; btn.textContent = 'Creating account…'
     try {
-      const r = await fetch('/auth/register', {
+      const r = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, idNumber, password })
       })
@@ -958,7 +963,7 @@ How can I help you today?`
     errEl.classList.remove('show')
 
     try {
-      const r = await fetch('/appointments/book-guest', {
+      const r = await fetch(`${API_BASE}/appointments/book-guest`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           guestName: guestNameVal, guestPhone: guestPhoneVal,
@@ -1107,7 +1112,7 @@ How can I help you today?`
   async function showAllServices(filterCat = null) {
     if (allServices.length === 0) {
       try {
-        const r = await fetch('/appointments/services')
+        const r = await fetch(`${API_BASE}/appointments/services`)
         const d = await r.json()
         if (d.success) allServices = d.services
       } catch { addBubble('Could not load services. Please try again.', 'bot'); return }
@@ -1180,7 +1185,7 @@ How can I help you today?`
 
     const loader = addWidget('<div style="text-align:center;padding:16px;font-size:12px;color:var(--muted-w)">Loading slots…</div>')
     try {
-      const r = await fetch('/appointments/slots?days=30')
+      const r = await fetch(`${API_BASE}/appointments/slots?days=30`)
       const d = await r.json()
       loader.remove()
       if (!d.success) { addBubble('Could not load slots. Please try again.', 'bot'); return }
@@ -1254,7 +1259,7 @@ How can I help you today?`
       addBubble(slotLabel, 'user')
       isLoading = true; setTyping(true)
       try {
-        const r = await fetch('/chat', {
+        const r = await fetch(`${API_BASE}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
           body: JSON.stringify({ message: `Book ${thaiSlot}`, sessionId })
@@ -1273,7 +1278,7 @@ How can I help you today?`
       const btn = document.getElementById('confirmBtn')
       if (btn) { btn.disabled = true; btn.textContent = 'Booking…' }
       try {
-        const r = await fetch('/appointments/book', {
+        const r = await fetch(`${API_BASE}/appointments/book`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
           body: JSON.stringify({ serviceId: pendingServiceId, slotDatetime: pendingSlot })
@@ -1307,7 +1312,7 @@ How can I help you today?`
     if (!isLoggedIn) { openAuthModal(); return }
     const loader = addWidget('<div style="text-align:center;padding:16px;font-size:12px;color:var(--muted-w)">Loading your appointments…</div>')
     try {
-      const r = await fetch('/appointments/my', { headers: { Authorization: `Bearer ${authToken}` } })
+      const r = await fetch(`${API_BASE}/appointments/my`, { headers: { Authorization: `Bearer ${authToken}` } })
       const d = await r.json()
       loader.remove()
       const confirmed = (d.appointments || []).filter(a => a.status === 'confirmed')
@@ -1326,7 +1331,7 @@ How can I help you today?`
   async function showBookingReceipt(bookingRef) {
     if (!isLoggedIn) return
     try {
-      const r = await fetch('/appointments/my', { headers: { Authorization: `Bearer ${authToken}` } })
+      const r = await fetch(`${API_BASE}/appointments/my`, { headers: { Authorization: `Bearer ${authToken}` } })
       const d = await r.json()
       if (!d.success) return
       const appt = (d.appointments || []).find(a => a.booking_ref === bookingRef)
@@ -1425,7 +1430,7 @@ How can I help you today?`
       const headers = { 'Content-Type': 'application/json' }
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`
 
-      const r = await fetch('/chat', {
+      const r = await fetch(`${API_BASE}/chat`, {
         method: 'POST', headers,
         body: JSON.stringify({ message: msg, sessionId })
       })
