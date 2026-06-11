@@ -7,9 +7,11 @@
   <link rel="stylesheet" href="assets/css/style.css" />
   <link rel="stylesheet" href="assets/css/chatbot-widget.css" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <style>[data-lucide]{width:1em;height:1em;vertical-align:middle;stroke-width:1.8;}</style>
   <style>
-    /* Signed-in avatar chip in nav */
+    /* ── LUCIDE ICONS ─────────────────────────────────────── */
+    [data-lucide] { width: 1em; height: 1em; vertical-align: middle; stroke-width: 1.8; }
+
+    /* ── NAV: Signed-in avatar chip ───────────────────────── */
     .nav-user-chip {
       display: inline-flex;
       align-items: center;
@@ -22,17 +24,17 @@
       color: var(--navy);
       cursor: pointer;
       transition: all var(--transition);
-      text-decoration: none;
     }
     .nav-user-chip:hover { border-color: var(--accent); background: var(--accent-pale); }
     .nav-user-avatar {
-      width: 26px; height: 26px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       object-fit: cover;
       background: var(--sky);
     }
 
-    /* Logout button — only visible when signed in */
+    /* ── NAV: Logout button ───────────────────────────────── */
     #nav-logout-btn {
       display: none;
       align-items: center;
@@ -51,7 +53,7 @@
     #nav-logout-btn:hover { background: #fef2f2; border-color: #dc2626; }
     #nav-logout-btn svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
 
-    /* Mobile logout */
+    /* ── Mobile logout ────────────────────────────────────── */
     #mobile-logout-btn {
       display: none;
       padding: 13px 16px;
@@ -66,14 +68,13 @@
       text-align: left;
       width: 100%;
     }
-  </style>
-  <style>
+
+
     /* ── HERO ─────────────────────────────────────────────── */
     .hero {
       min-height: 100vh;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 0;
       padding-top: var(--nav-h);
       overflow: hidden;
     }
@@ -259,7 +260,6 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 24px;
-      margin-top: 0;
     }
 
     .why-card {
@@ -611,7 +611,7 @@
 
   <script src="assets/js/script.js"></script>
   <script src="assets/js/chatbot-widget.js"></script>
-    <script src="assets/js/auth-nav.js"></script>
+  <script src="assets/js/auth-nav.js"></script>
   <script>lucide.createIcons();</script>
 </body>
 </html>

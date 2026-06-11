@@ -100,16 +100,13 @@ async function isSlotAvailable(slotDateTime) {
 }
 
 function formatSlotDisplay(time) {
-    const start = new Date(2000, 0, 1, time.hour, time.minute)
-    const end   = new Date(2000, 0, 1, time.hour + 1, time.minute)
-
-    const fmt = (d) => d.toLocaleTimeString('en-US', {
-        hour:   'numeric',
-        minute: '2-digit',
-        hour12: true
-    })
-
-    return `${fmt(start)} - ${fmt(end)}`
+    const fmt = (h, m) => {
+        const period = h < 12 ? 'AM' : 'PM'
+        const h12    = h % 12 || 12
+        const mm     = String(m).padStart(2, '0')
+        return `${h12}:${mm} ${period}`
+    }
+    return `${fmt(time.hour, time.minute)} - ${fmt(time.hour + 1, time.minute)}`
 }
 
 module.exports = { getSlotsForDate, getAvailableSlots, isSlotAvailable, SLOT_TIMES, MAX_BOOKINGS_PER_SLOT }

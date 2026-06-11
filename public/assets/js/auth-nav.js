@@ -1,7 +1,5 @@
 // ============================================================
 //  auth-nav.js  —  shared navbar auth state for all pages
-//  Include this on every page AFTER script.js:
-//    <script src="auth-nav.js"></script>
 // ============================================================
 
 (function () {
@@ -9,11 +7,11 @@
   // ── Idle timeout ──────────────────────────────────────────
   // Logs the user out after 30 min of no mouse/keyboard/touch
   // activity on any page that includes this script.
-  var IDLE_MS  = 30 * 60 * 1000   // 30 minutes
-  var WARN_MS  =  2 * 60 * 1000   // warn 2 min before logout
-  var idleTimer  = null
-  var warnTimer  = null
-  var warnToast  = null
+  const IDLE_MS  = 30 * 60 * 1000   // 30 minutes
+  const WARN_MS  =  2 * 60 * 1000   // warn 2 min before logout
+  let idleTimer  = null
+  let warnTimer  = null
+  let warnToast  = null
 
   function resetIdleTimer() {
     if (!localStorage.getItem('lc_token')) return  // only when logged in
@@ -57,7 +55,7 @@
     window.dispatchEvent(new Event('auth:logout'))
     applyAuthToNav()
     // Show notice then redirect
-    var msg = document.createElement('div')
+    const msg = document.createElement('div')
     msg.textContent = 'You were logged out due to inactivity.'
     msg.style.cssText =
       'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);' +
@@ -69,7 +67,7 @@
   }
 
   // Reset timer on any user activity
-  var ACTIVITY = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+  const ACTIVITY = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
   ACTIVITY.forEach(function (evt) {
     window.addEventListener(evt, resetIdleTimer, { passive: true })
   })
@@ -128,11 +126,11 @@
       // Restore Sign In link if it was replaced
       const chip = document.querySelector('.nav-user-chip#nav-auth-btn')
       if (chip) {
-        chip.outerHTML = `<a href="login.html" id="nav-auth-btn">Sign In</a>`
+        chip.outerHTML = `<a href="/login" id="nav-auth-btn">Sign In</a>`
       }
       if (mobileBtn) {
         mobileBtn.textContent = 'Sign In'
-        mobileBtn.href = 'login.html'
+        mobileBtn.href = '/login'
       }
       if (logoutBtn)    logoutBtn.style.display    = 'none'
       if (mobileLogout) mobileLogout.style.display = 'none'

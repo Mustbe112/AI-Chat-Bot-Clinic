@@ -1,23 +1,15 @@
-// ============================================================
-//  routes/auth.js
-//  POST /auth/register  — create a new registered account
-//  POST /auth/login     — email + password → JWT token
-//  POST /auth/logout    — client-side only; endpoint for completeness
-//  GET  /auth/me        — verify token & return user profile
-// ============================================================
-
 const express  = require('express')
 const router   = express.Router()
 const bcrypt   = require('bcrypt')
 const jwt      = require('jsonwebtoken')
 const supabase = require('../services/supabase')
 
-const JWT_SECRET      = process.env.JWT_SECRET || 'change-me-in-production'
+const JWT_SECRET      = process.env.JWT_SECRET
 const SALT_ROUNDS     = 10
-const TOKEN_EXPIRES   = '30d'   // stay logged in for 30 days
+const TOKEN_EXPIRES   = '1h'    // stay logged in for 1 hour
 const SESSION_TIMEOUT = 60 * 60 // 1 hour of inactivity (seconds)
 
-// ── In-memory rate limiter ────────────────────────────────
+// In-memory rate limiter
 // Keyed by IP. Each entry: { count, resetAt }
 // For multi-instance deployments, replace with Redis-backed storage.
 const rateLimitStore = new Map()
@@ -62,7 +54,7 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000)
 
-// ── Middleware: verify JWT + session timeout ──────────────
+// Middleware: verify JWT + session timeout 
 // How inactivity logout works:
 //   - Every token carries a `lastActive` timestamp (Unix seconds).
 //   - On each authenticated request we check how long ago that was.
@@ -103,14 +95,13 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// ── Validation helpers ────────────────────────────────────
+// Validation helpers 
 function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) }
 function isValidPhone(p) { return /^[0-9+\-\s]{7,15}$/.test(p) }
 
-// ============================================================
 //  POST /auth/register
-// ============================================================
-router.post('/register', rateLimit('register'), async (req, res) => {
+
+router.post('/register', rateLimit('regsister'), async (req, res) => {
   try {
     const { name, email, password, phone, idNumber } = req.body
 
@@ -186,9 +177,8 @@ router.post('/register', rateLimit('register'), async (req, res) => {
   }
 })
 
-// ============================================================
 //  POST /auth/login
-// ============================================================
+
 router.post('/login', rateLimit('login'), async (req, res) => {
   try {
     const { email, password } = req.body
@@ -235,16 +225,16 @@ router.post('/login', rateLimit('login'), async (req, res) => {
   }
 })
 
-// ============================================================
+
 //  POST /auth/logout  (stateless JWT — client clears token)
-// ============================================================
+
 router.post('/logout', (req, res) => {
   res.json({ success: true, message: 'Logged out.' })
 })
 
-// ============================================================
+
 //  GET /auth/me  — verify token, return user info
-// ============================================================
+
 router.get('/me', rateLimit('me'), authMiddleware, async (req, res) => {
   try {
     const { data: user } = await supabase

@@ -1,8 +1,3 @@
-// ============================================================
-//  LUMIÈRE CLINIC — script.js
-//  Shared across all pages
-// ============================================================
-
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── Active nav link ──────────────────────────────────────

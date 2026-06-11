@@ -25,7 +25,6 @@
   }
   cwWakeServer()
 
-
   // ── Inject HTML ────────────────────────────────────────────
   const markup = `
   <!-- FAB -->
@@ -528,21 +527,12 @@ How can I help you today?`
       filterCat ? `${filterCat} Services` : 'Our Services & Prices')
   }
 
-  // Decide which booking path based on login state
   window.cwStartBooking = function(id, name, price) {
     cwPendingServiceId    = id
     cwPendingServiceName  = name
     cwPendingServicePrice = price
-
-    if (cwLoggedIn) {
-      // Way 2: logged in → slot picker → AI books it
-      cwAddBubble(`Great choice! Let's book **${name}** for ${cwFmtPrice(price)} 😊\nPlease pick a date below.`, 'bot')
-      cwAskForDate()
-    } else {
-      // Way 1: guest → slot picker first, then guest form
-      cwAddBubble(`Great choice! Let's book **${name}** for ${cwFmtPrice(price)} 😊\nPick a date and time below.`, 'bot')
-      cwAskForDate()
-    }
+    cwAddBubble(`Great choice! Let's book **${name}** for ${cwFmtPrice(price)} 😊\nPick a date and time below.`, 'bot')
+    cwAskForDate()
   }
 
   // ── Slot picker ────────────────────────────────────────────
@@ -892,6 +882,7 @@ How can I help you today?`
         cwAddBubble("To reschedule or cancel appointments, please log in first. Your booking history is linked to your account. 😊", 'bot')
         cwOpenAuth(); return
       }
+      cwRescheduleInProgress = true
       cwAddBubble("Sure! Please enter your **booking reference** (e.g. TCB-20260605-001) and I'll get that sorted for you 😊", 'bot')
       return
     }
@@ -919,11 +910,13 @@ How can I help you today?`
       }
       cwRescheduleInProgress = true
       await cwShowBookingReceipt(bookingRefMatch[0].toUpperCase())
+      return
     }
 
     if (!bookingRefMatch) cwAddBubble(msg, 'user')
     $input.value = ''; $input.style.height = 'auto'
     $charLine.textContent = '0 / 100'; $charLine.className = ''
+    cwRescheduleInProgress = false
 
     cwIsLoading = true; $send.disabled = true; cwSetTyping(true)
 

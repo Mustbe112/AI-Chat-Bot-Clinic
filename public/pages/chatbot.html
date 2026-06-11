@@ -468,32 +468,63 @@
     @media (max-width: 400px) {
       .chat-shell { height: min(520px, calc(100dvh - var(--nav-h,60px) - 170px)); }
     }
+
+    /* ── NAV: Signed-in avatar chip ───────────────────────── */
     .nav-user-chip {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 5px 12px 5px 5px; border: 1.5px solid var(--border, #e2e8f0);
-      border-radius: 99px; font-size: 0.82rem; font-weight: 500;
-      color: var(--navy, #0a1628); cursor: pointer;
-      transition: all 0.25s cubic-bezier(0.4,0,0.2,1); text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px 5px 5px;
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--navy);
+      cursor: pointer;
+      transition: all var(--transition);
     }
-    .nav-user-chip:hover { border-color: #2563eb; background: #dbeafe; }
+    .nav-user-chip:hover { border-color: var(--accent); background: var(--accent-pale); }
     .nav-user-avatar {
-      width: 26px; height: 26px; border-radius: 50%;
-      object-fit: cover; background: #e8f0fb;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--sky);
     }
+
+    /* ── NAV: Logout button ───────────────────────────────── */
     #nav-logout-btn {
-      display: none; align-items: center; gap: 5px;
-      padding: 7px 14px; border: 1.5px solid #fecaca;
-      border-radius: 6px; font-size: 0.82rem; font-weight: 500;
-      color: #dc2626; background: transparent; cursor: pointer;
-      font-family: inherit; transition: all 0.25s;
+      display: none;
+      align-items: center;
+      gap: 5px;
+      padding: 7px 14px;
+      border: 1.5px solid #fecaca;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: #dc2626;
+      background: transparent;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all var(--transition);
     }
     #nav-logout-btn:hover { background: #fef2f2; border-color: #dc2626; }
     #nav-logout-btn svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 2; fill: none; }
+
+    /* ── Mobile logout ────────────────────────────────────── */
     #mobile-logout-btn {
-      display: none; padding: 13px 16px; border-radius: 6px;
-      font-weight: 500; font-size: 0.95rem; color: #dc2626;
-      background: #fef2f2; border: none; font-family: inherit;
-      cursor: pointer; text-align: left; width: 100%;
+      display: none;
+      padding: 13px 16px;
+      border-radius: var(--radius-sm);
+      font-weight: 500;
+      font-size: 0.95rem;
+      color: #dc2626;
+      background: #fef2f2;
+      border: none;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
     }
   </style>
 </head>
@@ -1500,6 +1531,6 @@ How can I help you today?`
   updateAuthUI()
   </script>
   <script src="../assets/js/auth-nav.js"></script>
-  <script>lucide.createIcons(); document.addEventListener('DOMContentLoaded', () => lucide.createIcons());</script>
+  <script>lucide.createIcons();</script>
 </body>
 </html>

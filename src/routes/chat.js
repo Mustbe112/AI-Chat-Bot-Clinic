@@ -1,25 +1,19 @@
-// ============================================================
-//  routes/chat.js  (v2)
-//  Accepts either:
-//   • Bearer token  (registered user, Way 2 logged-in chatbot)
-//   • sessionId body param (guest browsing, Way 2 unauthenticated)
-// ============================================================
+const express    = require('express')
+const router     = express.Router()
+const jwt        = require('jsonwebtoken')
+const { chat }   = require('../services/gemini')
+const supabase   = require('../services/supabase')
 
-const express  = require('express')
-const router   = express.Router()
-const { chat } = require('../services/gemini')
-const supabase = require('../services/supabase')
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production'
 
 // Resolve user from JWT (preferred) or sessionId fallback.
 // Returns { user, isLoggedIn }
 async function resolveUser(req, displayName = 'Guest') {
-  // ── JWT path ──────────────────────────────────────────
+  //  JWT path 
   const header = req.headers.authorization
   if (header && header.startsWith('Bearer ')) {
     try {
-      const jwt     = require('jsonwebtoken')
-      const secret  = process.env.JWT_SECRET || 'change-me-in-production'
-      const payload = jwt.verify(header.slice(7), secret)
+      const payload = jwt.verify(header.slice(7), JWT_SECRET)
 
       const { data: user } = await supabase
         .from('users')
@@ -31,7 +25,7 @@ async function resolveUser(req, displayName = 'Guest') {
     } catch { /* fall through to sessionId */ }
   }
 
-  // ── sessionId path (guest) ────────────────────────────
+  //  sessionId path (guest)
   const { sessionId } = req.body
   if (!sessionId) return { user: null, isLoggedIn: false }
 
@@ -59,9 +53,8 @@ async function resolveUser(req, displayName = 'Guest') {
   return { user: newUser, isLoggedIn: false }
 }
 
-// ============================================================
 //  POST /chat
-// ============================================================
+
 router.post('/', async (req, res) => {
   try {
     const { message, displayName } = req.body
@@ -70,7 +63,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Message is required.' })
     }
 
-    const { user, isLoggedIn } = await resolveUser(req, displayName || 'Guest')
+    const { user, isLoggedIn } = await resolveUser(req, displayName)
     if (!user) {
       return res.status(500).json({ success: false, message: 'Could not initialize session.' })
     }
@@ -97,30 +90,28 @@ router.post('/', async (req, res) => {
   }
 })
 
-// ============================================================
 //  GET /chat/history
-// ============================================================
+// Lightweight helper: resolve only the userId without creating guest rows
+async function resolveUserId(req) {
+  const header = req.headers.authorization
+  if (header && header.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(header.slice(7), JWT_SECRET)
+      return payload.userId
+    } catch {}
+  }
+  const sessionId = req.query.sessionId || req.body?.sessionId
+  if (sessionId) {
+    const { data: user } = await supabase
+      .from('users').select('id').eq('session_id', sessionId).single()
+    return user?.id || null
+  }
+  return null
+}
+
 router.get('/history', async (req, res) => {
   try {
-    const { sessionId } = req.query
-
-    // Also support Bearer token for history
-    let userId = null
-    const header = req.headers.authorization
-    if (header && header.startsWith('Bearer ')) {
-      try {
-        const jwt     = require('jsonwebtoken')
-        const secret  = process.env.JWT_SECRET || 'change-me-in-production'
-        const payload = jwt.verify(header.slice(7), secret)
-        userId = payload.userId
-      } catch {}
-    }
-
-    if (!userId && sessionId) {
-      const { data: user } = await supabase
-        .from('users').select('id').eq('session_id', sessionId).single()
-      userId = user?.id
-    }
+    const userId = await resolveUserId(req)
 
     if (!userId) return res.json({ success: true, history: [] })
 

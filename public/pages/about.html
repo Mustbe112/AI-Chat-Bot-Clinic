@@ -7,9 +7,11 @@
   <link rel="stylesheet" href="../assets/css/style.css" />
   <link rel="stylesheet" href="../assets/css/chatbot-widget.css" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <style>[data-lucide]{width:1em;height:1em;vertical-align:middle;stroke-width:1.8;}</style>
   <style>
-    /* Signed-in avatar chip in nav */
+    /* ── LUCIDE ICONS ─────────────────────────────────────── */
+    [data-lucide] { width: 1em; height: 1em; vertical-align: middle; stroke-width: 1.8; }
+
+    /* ── NAV: Signed-in avatar chip ───────────────────────── */
     .nav-user-chip {
       display: inline-flex;
       align-items: center;
@@ -22,7 +24,6 @@
       color: var(--navy);
       cursor: pointer;
       transition: all var(--transition);
-      text-decoration: none;
     }
     .nav-user-chip:hover { border-color: var(--accent); background: var(--accent-pale); }
     .nav-user-avatar {
@@ -66,8 +67,6 @@
       text-align: left;
       width: 100%;
     }
-  </style>
-  <style>
 
     /* ── PAGE HERO ───────────────────────────────────────── */
     .page-hero {
@@ -367,8 +366,6 @@
             <h2>Where expertise meets compassion</h2>
             <div class="divider"></div>
             <p style="margin-bottom:16px;line-height:1.8;">Whether you're visiting us for the first time or the fiftieth, the standard stays the same: honest advice, visible results, and care that extends well beyond your appointment. We're not happy until you are.</p>
-            <!--<p style="margin-bottom:16px;line-height:1.8;">We use only FDA-approved products and medical-grade equipment, and every treatment plan is built around your unique skin profile — never a one-size-fits-all approach.</p>
-            <p style="line-height:1.8;">From our first client to our five-thousandth, our mission remains the same: help every person walk out with skin they're proud of and knowledge to maintain it.</p> -->
 
             <div class="story-stat-row">
               <div class="story-stat fade-up">
@@ -556,7 +553,7 @@
 
   <script src="../assets/js/script.js"></script>
   <script src="../assets/js/chatbot-widget.js"></script>
-    <script src="../assets/js/auth-nav.js"></script>
+  <script src="../assets/js/auth-nav.js"></script>
   <script>lucide.createIcons();</script>
 </body>
 </html>

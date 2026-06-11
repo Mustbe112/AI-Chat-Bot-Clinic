@@ -1,13 +1,6 @@
-// ============================================================
-//  routes/appointment.js  (v2)
-//  New: POST /appointments/book-guest  (Way 1 — no login)
-//  Updated: all other routes now also accept JWT auth
-//           in addition to sessionId, so the chatbot (Way 2)
-//           can work with logged-in users seamlessly.
-// ============================================================
-
 const express  = require('express')
 const router   = express.Router()
+const jwt      = require('jsonwebtoken')
 const supabase = require('../services/supabase')
 const { getAvailableSlots, isSlotAvailable } = require('../services/scheduler')
 const { authMiddleware } = require('./auth')
@@ -48,7 +41,6 @@ function optionalAuth(req, res, next) {
   const header = req.headers.authorization
   if (header && header.startsWith('Bearer ')) {
     try {
-      const jwt    = require('jsonwebtoken')
       const secret = process.env.JWT_SECRET || 'change-me-in-production'
       const payload = jwt.verify(header.slice(7), secret)
       req.userId = payload.userId

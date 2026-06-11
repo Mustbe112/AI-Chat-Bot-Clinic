@@ -1,16 +1,40 @@
-// ============================================================
-//  services/gemini.js  (v2)
-//  chat(userId, userMessage, isLoggedIn)
-//  - isLoggedIn = true  → full booking / cancel / reschedule
-//  - isLoggedIn = false → recommendations, pricing, slots only
-// ============================================================
-
 const { GoogleGenerativeAI } = require('@google/generative-ai')
 const supabase = require('./supabase')
 const { getSlotsForDate, isSlotAvailable } = require('./scheduler')
-require('dotenv').config()
-
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+
+// ── Per-user chat rate limiter ────────────────────────────
+// Keyed by userId. Prevents burst-sending all daily messages
+// in seconds and hammering the Gemini API.
+// For multi-instance deployments, replace with Redis.
+const chatRateStore = new Map()
+const CHAT_RATE = { windowMs: 10 * 1000, max: 5 }  // 5 messages per 10 seconds
+
+function checkChatRateLimit(userId) {
+  const now   = Date.now()
+  const entry = chatRateStore.get(userId)
+
+  if (!entry || now > entry.resetAt) {
+    chatRateStore.set(userId, { count: 1, resetAt: now + CHAT_RATE.windowMs })
+    return { allowed: true }
+  }
+
+  entry.count++
+  if (entry.count > CHAT_RATE.max) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000)
+    return { allowed: false, retryAfter }
+  }
+  return { allowed: true }
+}
+
+// Prune expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of chatRateStore) {
+    if (now > entry.resetAt) chatRateStore.delete(key)
+  }
+}, 5 * 60 * 1000)
+
 
 const TZ_OFFSET_MS = 7 * 60 * 60 * 1000
 function thaiLocalToUTC(isoStr) {
@@ -19,9 +43,7 @@ function thaiLocalToUTC(isoStr) {
   return new Date(localMs - TZ_OFFSET_MS).toISOString()
 }
 
-// ============================================================
 //  SYSTEM PROMPTS
-// ============================================================
 
 // Shared rules for both guest and logged-in modes
 const SHARED_RULES = `
@@ -120,10 +142,7 @@ FLOW RULES:
 - After booking/cancel/reschedule completes, offer further assistance
 - When user wants to view bookings → call get_my_appointments
 `
-
-// ============================================================
 //  FUNCTION DECLARATIONS
-// ============================================================
 
 const SLOT_FUNCTION = {
   name: 'get_available_slots',
@@ -182,9 +201,8 @@ const BOOKING_FUNCTIONS = [
   }
 ]
 
-// ============================================================
 //  FUNCTION HANDLERS
-// ============================================================
+
 async function handleFunctionCall(functionName, args, userId) {
   console.log(`[Gemini Fn] ${functionName}`, args)
 
@@ -227,7 +245,7 @@ async function handleFunctionCall(functionName, args, userId) {
 
       return {
         success:      true,
-        message:      `Appointment booked successfully! ✅`,
+        message:      `Appointment booked successfully!`,
         bookingRef,
         service:      service.name,
         price:        service.price,
@@ -311,9 +329,8 @@ async function handleFunctionCall(functionName, args, userId) {
   }
 }
 
-// ============================================================
 //  HELPERS
-// ============================================================
+
 async function isSafeMessage(message) {
   const { data: keywords } = await supabase.from('blocked_keywords').select('keyword')
   if (!keywords) return true
@@ -371,6 +388,7 @@ async function incrementMessageCount(userId) {
   }
 }
 
+// NOTE: also defined in routes/appointment.js — consider moving to a shared utility
 async function generateRef() {
   const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
   const { count } = await supabase
@@ -378,7 +396,7 @@ async function generateRef() {
   return `TCB-${today}-${String((count || 0) + 1).padStart(3, '0')}`
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
 
 async function sendWithRetry(chatSession, message, maxRetries = 3) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -391,7 +409,7 @@ async function sendWithRetry(chatSession, message, maxRetries = 3) {
         try {
           const retryInfo = error.errorDetails?.find(d => d['@type']?.includes('RetryInfo'))
           if (retryInfo?.retryDelay) delayMs = parseInt(retryInfo.retryDelay) * 1000
-        } catch (_) {}
+        } catch {}
         console.log(`[Gemini] ${error.status} — retrying in ${delayMs / 1000}s (${attempt}/${maxRetries})`)
         await sleep(delayMs)
       } else {
@@ -401,23 +419,30 @@ async function sendWithRetry(chatSession, message, maxRetries = 3) {
   }
 }
 
-// ============================================================
 //  MAIN CHAT FUNCTION
-// ============================================================
+
 async function chat(userId, userMessage, isLoggedIn = false) {
 
   if (userMessage.length > 200) {
-    return { success: false, message: 'Your message is a bit long 😊 Could you shorten it?' }
+    return { success: false, message: 'Your message is a bit long. Could you shorten it?' }
+  }
+
+  const rateCheck = checkChatRateLimit(userId)
+  if (!rateCheck.allowed) {
+    return {
+      success: false,
+      message: `Slow down a little! Please wait ${rateCheck.retryAfter} second${rateCheck.retryAfter === 1 ? '' : 's'} before sending another message.`
+    }
   }
 
   const limitCheck = await checkMessageLimit(userId)
   if (!limitCheck.allowed) {
-    return { success: false, message: "You've reached your daily limit of 50 messages 😊 Please come back tomorrow!" }
+    return { success: false, message: "You've reached your daily limit of 50 messages. Please come back tomorrow!" }
   }
 
   const safe = await isSafeMessage(userMessage)
   if (!safe) {
-    return { success: false, message: "I'm not able to help with that. Is there anything else I can assist with? 😊" }
+    return { success: false, message: "I'm not able to help with that. Is there anything else I can assist with?" }
   }
 
   const history = await getChatHistory(userId)
@@ -441,7 +466,7 @@ async function chat(userId, userMessage, isLoggedIn = false) {
 
     let slotsData = null
 
-    while ((response.functionCalls?.() ?? []).length > 0) {
+    while ((response.functionCalls() || []).length > 0) {
       const functionCall = response.functionCalls()[0]
       const fnResult     = await handleFunctionCall(functionCall.name, functionCall.args, userId)
 
@@ -472,13 +497,13 @@ async function chat(userId, userMessage, isLoggedIn = false) {
     console.error('Gemini API error:', error)
 
     if (error.status === 429 || error.status === 503) {
-      let waitMsg = 'Please try again in a moment 😊'
+      let waitMsg = 'Please try again in a moment.'
       try {
         const retryInfo = error.errorDetails?.find(d => d['@type']?.includes('RetryInfo'))
         if (retryInfo?.retryDelay) {
-          waitMsg = `Please try again in about ${parseInt(retryInfo.retryDelay)} seconds 😊`
+          waitMsg = `Please try again in about ${parseInt(retryInfo.retryDelay)} seconds`
         }
-      } catch (_) {}
+      } catch {}
       return { success: false, message: `Our AI assistant is a bit busy right now. ${waitMsg}` }
     }
 

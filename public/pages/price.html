@@ -9,15 +9,10 @@
   <link rel="stylesheet" href="../assets/css/chatbot-widget.css" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
-    [data-lucide] {
-      width: 1em;
-      height: 1em;
-      vertical-align: middle;
-      stroke-width: 1.8;
-    }
-  </style>
-  <style>
-    /* Signed-in avatar chip in nav */
+    /* ── LUCIDE ICONS ─────────────────────────────────────── */
+    [data-lucide] { width: 1em; height: 1em; vertical-align: middle; stroke-width: 1.8; }
+
+    /* ── NAV: Signed-in avatar chip ───────────────────────── */
     .nav-user-chip {
       display: inline-flex;
       align-items: center;
@@ -30,7 +25,6 @@
       color: var(--navy);
       cursor: pointer;
       transition: all var(--transition);
-      text-decoration: none;
     }
 
     .nav-user-chip:hover {
@@ -91,8 +85,7 @@
       text-align: left;
       width: 100%;
     }
-  </style>
-  <style>
+
     /* ── PAGE HERO ───────────────────────────────────────── */
     .page-hero {
       background: var(--navy);
@@ -717,8 +710,8 @@
       </div>
     </div>
   </footer>
-  <script src="../assets/js/chatbot-widget.js"></script>
   <script src="../assets/js/script.js"></script>
+  <script src="../assets/js/chatbot-widget.js"></script>
   <script src="../assets/js/auth-nav.js"></script>
 
   <script>
@@ -739,7 +732,6 @@
       })
     })
   </script>
-  <script src="../js/auth-nav.js"></script>
   <script>lucide.createIcons();</script>
 </body>
 
