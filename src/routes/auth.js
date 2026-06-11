@@ -101,7 +101,7 @@ function isValidPhone(p) { return /^[0-9+\-\s]{7,15}$/.test(p) }
 
 //  POST /auth/register
 
-router.post('/register', rateLimit('regsister'), async (req, res) => {
+router.post('/register', rateLimit('regsiter'), async (req, res) => {
   try {
     const { name, email, password, phone, idNumber } = req.body
 
