@@ -22,6 +22,7 @@ const RATE_LIMIT_RULES = {
 
 function rateLimit(ruleName) {
   const rule = RATE_LIMIT_RULES[ruleName]
+  if (!rule) throw new Error(`Unknown rate limit rule: "${ruleName}"`)
   return (req, res, next) => {
     const key     = `${ruleName}:${req.ip}`
     const now     = Date.now()
@@ -101,7 +102,7 @@ function isValidPhone(p) { return /^[0-9+\-\s]{7,15}$/.test(p) }
 
 //  POST /auth/register
 
-router.post('/register', rateLimit('regsiter'), async (req, res) => {
+router.post('/register', rateLimit('register'), async (req, res) => {
   try {
     const { name, email, password, phone, idNumber } = req.body
 
