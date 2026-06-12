@@ -1075,8 +1075,8 @@ How can I help you today?`
     $charLine.className = 'char-line' + (len > 85 ? ' warn' : '')
   })
   $input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
-  })
+  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage() }
+})
 
   // ── Helpers ────────────────────────────────────────────────
   function fmtTime(d) {

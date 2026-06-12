@@ -10,7 +10,7 @@
 //    Guest (not logged in): recommendations, prices, slots only.
 //    Logged-in user: full booking / cancel / reschedule via AI.
 // ============================================================
-;(function () {
+; (function () {
 
   // ── Backend URL ────────────────────────────────────────────
   const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
@@ -21,7 +21,7 @@
     try {
       const r = await fetch(`${API_BASE}/health`, { signal: AbortSignal.timeout(30000) })
       if (r.ok) cwServerReady = true
-    } catch {}
+    } catch { }
   }
   cwWakeServer()
 
@@ -206,7 +206,7 @@ I'm your AI skin consultant. I can help you with:
   document.body.appendChild(container)
 
   // ── FAB toggle ─────────────────────────────────────────────
-  const $fab   = document.getElementById('cw-fab')
+  const $fab = document.getElementById('cw-fab')
   const $panel = document.getElementById('cw-panel')
   const $badge = document.getElementById('cw-badge')
 
@@ -227,20 +227,20 @@ I'm your AI skin consultant. I can help you with:
     const authOverlay = document.getElementById('cw-auth-overlay')
     const bookOverlay = document.getElementById('cw-book-overlay')
     if (!$panel.contains(e.target) && !$fab.contains(e.target) &&
-        !authOverlay?.contains(e.target) && !bookOverlay?.contains(e.target) &&
-        $panel.classList.contains('open')) {
+      !authOverlay?.contains(e.target) && !bookOverlay?.contains(e.target) &&
+      $panel.classList.contains('open')) {
       $panel.classList.remove('open')
       $fab.classList.remove('open')
     }
   })
 
   // ── Auth state ─────────────────────────────────────────────
-  let cwToken    = localStorage.getItem('lc_token') || localStorage.getItem('cw-token') || null
-  let cwUser     = null
+  let cwToken = localStorage.getItem('lc_token') || localStorage.getItem('cw-token') || null
+  let cwUser = null
   let cwLoggedIn = false
 
   const savedUser = localStorage.getItem('lc_user')
-  if (savedUser) { try { cwUser = JSON.parse(savedUser); cwLoggedIn = !!cwToken } catch {} }
+  if (savedUser) { try { cwUser = JSON.parse(savedUser); cwLoggedIn = !!cwToken } catch { } }
 
   // Restore session if token exists
   if (cwToken) cwVerifyToken()
@@ -250,7 +250,7 @@ I'm your AI skin consultant. I can help you with:
       const r = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${cwToken}` } })
       const d = await r.json()
       if (d.success) {
-        cwUser     = d.user
+        cwUser = d.user
         cwLoggedIn = true
         cwUpdateAuthUI()
       } else {
@@ -260,18 +260,18 @@ I'm your AI skin consultant. I can help you with:
   }
 
   function cwUpdateAuthUI() {
-    const statusBtn    = document.getElementById('cw-auth-status')
-    const guestNotice  = document.getElementById('cw-guest-notice')
-    const myBookingsBtn  = document.getElementById('cw-qbtn-mybookings')
-    const rescheduleBtn  = document.getElementById('cw-qbtn-reschedule')
+    const statusBtn = document.getElementById('cw-auth-status')
+    const guestNotice = document.getElementById('cw-guest-notice')
+    const myBookingsBtn = document.getElementById('cw-qbtn-mybookings')
+    const rescheduleBtn = document.getElementById('cw-qbtn-reschedule')
 
     if (cwLoggedIn && cwUser) {
       statusBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${cwUser.displayName.split(' ')[0]}`
       statusBtn.className = 'logged-in'
       statusBtn.onclick = cwDoLogout
       guestNotice.style.display = 'none'
-      if (myBookingsBtn)  myBookingsBtn.style.display  = ''
-      if (rescheduleBtn)  rescheduleBtn.style.display  = ''
+      if (myBookingsBtn) myBookingsBtn.style.display = ''
+      if (rescheduleBtn) rescheduleBtn.style.display = ''
 
       // Update welcome if first login
       const wb = document.querySelector('#cw-welcome-row .cw-bubble')
@@ -290,22 +290,22 @@ How can I help you today?`
       statusBtn.className = 'guest'
       statusBtn.onclick = cwOpenAuth
       guestNotice.style.display = 'flex'
-      if (myBookingsBtn)  myBookingsBtn.style.display  = 'none'
-      if (rescheduleBtn)  rescheduleBtn.style.display  = 'none'
+      if (myBookingsBtn) myBookingsBtn.style.display = 'none'
+      if (rescheduleBtn) rescheduleBtn.style.display = 'none'
     }
   }
 
   // ── Auth modal ─────────────────────────────────────────────
-  window.cwOpenAuth = function() {
+  window.cwOpenAuth = function () {
     document.getElementById('cw-auth-overlay').classList.add('open')
     document.getElementById('cw-auth-error').classList.remove('show')
     document.getElementById('cw-auth-error').textContent = ''
   }
-  window.cwCloseAuth = function() {
+  window.cwCloseAuth = function () {
     document.getElementById('cw-auth-overlay').classList.remove('open')
   }
-  window.cwSwitchTab = function(tab) {
-    document.querySelectorAll('.cw-auth-tab').forEach((t,i) => t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1)))
+  window.cwSwitchTab = function (tab) {
+    document.querySelectorAll('.cw-auth-tab').forEach((t, i) => t.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1)))
     document.getElementById('cw-login-form').classList.toggle('active', tab === 'login')
     document.getElementById('cw-register-form').classList.toggle('active', tab === 'register')
     document.getElementById('cw-auth-error').classList.remove('show')
@@ -316,8 +316,8 @@ How can I help you today?`
     el.textContent = msg; el.classList.add('show')
   }
 
-  window.cwDoLogin = async function() {
-    const email    = document.getElementById('cw-login-email').value.trim()
+  window.cwDoLogin = async function () {
+    const email = document.getElementById('cw-login-email').value.trim()
     const password = document.getElementById('cw-login-password').value
     if (!email || !password) { cwSetAuthError('Please enter your email and password.'); return }
     const btn = document.getElementById('cw-login-btn')
@@ -345,10 +345,10 @@ How can I help you today?`
     btn.disabled = false; btn.textContent = 'Log In'
   }
 
-  window.cwDoRegister = async function() {
-    const name     = document.getElementById('cw-reg-name').value.trim()
-    const email    = document.getElementById('cw-reg-email').value.trim()
-    const phone    = document.getElementById('cw-reg-phone').value.trim()
+  window.cwDoRegister = async function () {
+    const name = document.getElementById('cw-reg-name').value.trim()
+    const email = document.getElementById('cw-reg-email').value.trim()
+    const phone = document.getElementById('cw-reg-phone').value.trim()
     const idNumber = document.getElementById('cw-reg-id').value.trim()
     const password = document.getElementById('cw-reg-password').value
     if (!name || !email || !phone || !idNumber || !password) {
@@ -392,31 +392,31 @@ How can I help you today?`
   // ── State ──────────────────────────────────────────────────
   let cwSessionId = localStorage.getItem('clinicSessionId')
   if (!cwSessionId) {
-    cwSessionId = 'sess-' + Math.random().toString(36).slice(2,9) + '-' + Date.now()
+    cwSessionId = 'sess-' + Math.random().toString(36).slice(2, 9) + '-' + Date.now()
     localStorage.setItem('clinicSessionId', cwSessionId)
   }
 
-  let cwRemaining            = 20
-  let cwIsLoading            = false
-  let cwAllServices          = []
-  let cwPendingServiceId     = null
-  let cwPendingServiceName   = null
-  let cwPendingServicePrice  = null
-  let cwPendingSlot          = null
-  let cwGeminiMode           = false
+  let cwRemaining = 20
+  let cwIsLoading = false
+  let cwAllServices = []
+  let cwPendingServiceId = null
+  let cwPendingServiceName = null
+  let cwPendingServicePrice = null
+  let cwPendingSlot = null
+  let cwGeminiMode = false
   let cwRescheduleInProgress = false
 
   // Guest booking modal state
-  let cwGuestBookServiceId   = null
-  let cwGuestBookSlot        = null
+  let cwGuestBookServiceId = null
+  let cwGuestBookSlot = null
 
   document.getElementById('cw-welcome-time').textContent = cwFmtTime(new Date())
 
-  const $input    = document.getElementById('cw-input')
-  const $send     = document.getElementById('cw-send-btn')
-  const $msgs     = document.getElementById('cw-messages')
-  const $typing   = document.getElementById('cw-typing-row')
-  const $counter  = document.getElementById('cw-msg-counter')
+  const $input = document.getElementById('cw-input')
+  const $send = document.getElementById('cw-send-btn')
+  const $msgs = document.getElementById('cw-messages')
+  const $typing = document.getElementById('cw-typing-row')
+  const $counter = document.getElementById('cw-msg-counter')
   const $charLine = document.getElementById('cw-char-line')
 
   $input.addEventListener('input', () => {
@@ -427,22 +427,22 @@ How can I help you today?`
     $charLine.className = len > 85 ? 'warn' : ''
   })
   $input.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); cwSendMessage() }
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); cwSendMessage() }
   })
 
   // ── Helpers ────────────────────────────────────────────────
   function cwFmtTime(d) {
-    return d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true, timeZone:'Asia/Bangkok' })
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Bangkok' })
   }
   function cwFmtDatetime(iso) {
     const normalized = (iso && !/Z$|[+-]\d{2}:\d{2}$/.test(iso)) ? iso + 'Z' : iso
     const d = new Date(normalized)
-    return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', timeZone:'Asia/Bangkok' })
-      + ' · ' + d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true, timeZone:'Asia/Bangkok' })
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok' })
+      + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Bangkok' })
   }
   function cwFmtDayLabel(dateStr) {
     return new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-US',
-      { weekday:'long', month:'short', day:'numeric', timeZone:'Asia/Bangkok' })
+      { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok' })
   }
   function cwFmtPrice(p) { return Number(p).toLocaleString() + ' THB' }
   function cwScrollBottom() { setTimeout(() => $msgs.scrollTop = $msgs.scrollHeight, 40) }
@@ -467,7 +467,7 @@ How can I help you today?`
   }
 
   function cwAddBubble(text, role) {
-    const row  = document.createElement('div')
+    const row = document.createElement('div')
     row.className = `cw-msg-row ${role}`
     const prev = $typing.previousElementSibling
     if (prev && prev.classList.contains(role) && prev.classList.contains('cw-msg-row')) {
@@ -499,7 +499,7 @@ How can I help you today?`
 
   // ── Services ───────────────────────────────────────────────
   // "Book this service" opens guest modal (Way 1) OR slot picker for logged-in (Way 2)
-  window.cwShowAllServices = async function(filterCat = null) {
+  window.cwShowAllServices = async function (filterCat = null) {
     if (cwAllServices.length === 0) {
       try {
         const r = await fetch(`${API_BASE}/appointments/services`)
@@ -511,8 +511,8 @@ How can I help you today?`
     const list = filterCat ? cwAllServices.filter(s => s.category === filterCat) : cwAllServices
 
     const tabsHtml = `<div class="cw-cat-tabs">
-      <button class="cw-cat-tab ${!filterCat?'active':''}" onclick="cwShowAllServices(null)">All</button>
-      ${cats.map(c=>`<button class="cw-cat-tab ${filterCat===c?'active':''}" onclick="cwShowAllServices('${c}')">${c}</button>`).join('')}
+      <button class="cw-cat-tab ${!filterCat ? 'active' : ''}" onclick="cwShowAllServices(null)">All</button>
+      ${cats.map(c => `<button class="cw-cat-tab ${filterCat === c ? 'active' : ''}" onclick="cwShowAllServices('${c}')">${c}</button>`).join('')}
     </div>`
 
     const cardsHtml = list.map(s => `
@@ -520,31 +520,31 @@ How can I help you today?`
         <div class="cw-svc-name">${s.name}</div>
         <div class="cw-svc-price">${cwFmtPrice(s.price)}</div>
         <div class="cw-svc-desc">${s.description || ''}</div>
-        <button class="cw-svc-book-btn" onclick="cwStartBooking(${s.id},'${s.name.replace(/'/g,"\\'")}',${s.price})">Book this service →</button>
+        <button class="cw-svc-book-btn" onclick="cwStartBooking(${s.id},'${s.name.replace(/'/g, "\\'")}',${s.price})">Book this service →</button>
       </div>`).join('')
 
     cwAddWidget(`${tabsHtml}<div class="cw-services-list">${cardsHtml}</div>`,
       filterCat ? `${filterCat} Services` : 'Our Services & Prices')
   }
 
-  window.cwStartBooking = function(id, name, price) {
-    cwPendingServiceId    = id
-    cwPendingServiceName  = name
+  window.cwStartBooking = function (id, name, price) {
+    cwPendingServiceId = id
+    cwPendingServiceName = name
     cwPendingServicePrice = price
     cwAddBubble(`Great choice! Let's book **${name}** for ${cwFmtPrice(price)} 😊\nPick a date and time below.`, 'bot')
     cwAskForDate()
   }
 
   // ── Slot picker ────────────────────────────────────────────
-  window.cwShowSlots = function(svcId=null, svcName=null, svcPrice=null) {
-    if (svcId) { cwPendingServiceId=svcId; cwPendingServiceName=svcName; cwPendingServicePrice=svcPrice }
+  window.cwShowSlots = function (svcId = null, svcName = null, svcPrice = null) {
+    if (svcId) { cwPendingServiceId = svcId; cwPendingServiceName = svcName; cwPendingServicePrice = svcPrice }
     cwAskForDate()
   }
 
   function cwAskForDate() {
     document.querySelectorAll('.cw-date-picker-widget').forEach(el => el.remove())
-    const todayThai = new Date(Date.now() + 7*60*60*1000).toISOString().split('T')[0]
-    const maxDate = new Date(Date.now() + 7*60*60*1000)
+    const todayThai = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const maxDate = new Date(Date.now() + 7 * 60 * 60 * 1000)
     maxDate.setUTCDate(maxDate.getUTCDate() + 30)
     const maxStr = maxDate.toISOString().split('T')[0]
 
@@ -567,7 +567,7 @@ How can I help you today?`
     cwAddWidget(html)
   }
 
-  window.cwLoadSlotsForDate = async function() {
+  window.cwLoadSlotsForDate = async function () {
     const input = document.getElementById('cw-date-input')
     if (!input) return
     const date = input.value
@@ -603,12 +603,12 @@ How can I help you today?`
 
     const daysHtml = days.map(day => {
       const chips = day.slots.map(slot => {
-        const t = new Date(slot.datetime).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true,timeZone:'Asia/Bangkok'})
+        const t = new Date(slot.datetime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Bangkok' })
         const full = !slot.isAvailable
-        return `<div class="cw-slot-chip${full?' full':''}"
-          ${full?'':` onclick="cwSelectSlot('${slot.datetime}','${t}',this)"`}
+        return `<div class="cw-slot-chip${full ? ' full' : ''}"
+          ${full ? '' : ` onclick="cwSelectSlot('${slot.datetime}','${t}',this)"`}
           title="${slot.remaining} spot(s) left">
-          ${t}<span class="cw-chip-spots">${full?'full':`(${slot.remaining})`}</span>
+          ${t}<span class="cw-chip-spots">${full ? 'full' : `(${slot.remaining})`}</span>
         </div>`
       }).join('')
       return `<div class="cw-slot-day">
@@ -631,12 +631,12 @@ How can I help you today?`
     cwAddWidget(html, 'Available Appointments')
   }
 
-  window.cwSelectSlot = function(datetime, timeDisplay, el) {
+  window.cwSelectSlot = function (datetime, timeDisplay, el) {
     document.querySelectorAll('.cw-slot-chip').forEach(c => c.classList.remove('selected'))
     el.classList.add('selected')
     cwPendingSlot = datetime
     const d = new Date(datetime)
-    const label = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'Asia/Bangkok'}) + ' · ' + timeDisplay
+    const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'Asia/Bangkok' }) + ' · ' + timeDisplay
     const sv = document.getElementById('cw-selected-slot-text')
     if (sv) sv.textContent = label
     const btn = document.getElementById('cw-confirm-btn')
@@ -644,7 +644,7 @@ How can I help you today?`
   }
 
   // ── Confirm booking ────────────────────────────────────────
-  window.cwConfirmBooking = async function() {
+  window.cwConfirmBooking = async function () {
     if (!cwPendingSlot) return
 
     if (cwLoggedIn) {
@@ -652,8 +652,8 @@ How can I help you today?`
       if (cwGeminiMode) {
         // Gemini was guiding, pass slot back through chat
         const slotLabel = document.getElementById('cw-selected-slot-text')?.textContent || cwPendingSlot
-        const thaiSlot = new Date(new Date(cwPendingSlot).getTime() + 7*60*60*1000)
-          .toISOString().replace('Z','').slice(0,19)
+        const thaiSlot = new Date(new Date(cwPendingSlot).getTime() + 7 * 60 * 60 * 1000)
+          .toISOString().replace('Z', '').slice(0, 19)
         cwAddBubble(slotLabel, 'user')
         cwIsLoading = true; cwSetTyping(true)
         try {
@@ -700,30 +700,30 @@ How can I help you today?`
 
     // Guest (Way 1): open the guest details modal
     cwGuestBookServiceId = cwPendingServiceId
-    cwGuestBookSlot      = cwPendingSlot
-    const slotLabel      = document.getElementById('cw-selected-slot-text')?.textContent || ''
+    cwGuestBookSlot = cwPendingSlot
+    const slotLabel = document.getElementById('cw-selected-slot-text')?.textContent || ''
 
     document.getElementById('cw-book-modal-title').textContent = cwPendingServiceName || 'Book Appointment'
-    document.getElementById('cw-book-modal-sub').textContent   = slotLabel || 'Fill in your details to confirm'
+    document.getElementById('cw-book-modal-sub').textContent = slotLabel || 'Fill in your details to confirm'
     document.getElementById('cw-book-error').classList.remove('show')
     document.getElementById('cw-book-error').textContent = ''
-    ;['cw-book-name','cw-book-phone','cw-book-email','cw-book-notes'].forEach(id => {
-      document.getElementById(id).value = ''
-    })
+      ;['cw-book-name', 'cw-book-phone', 'cw-book-email', 'cw-book-notes'].forEach(id => {
+        document.getElementById(id).value = ''
+      })
     document.getElementById('cw-book-overlay').classList.add('open')
   }
 
-  window.cwCloseBookModal = function() {
+  window.cwCloseBookModal = function () {
     document.getElementById('cw-book-overlay').classList.remove('open')
   }
 
   // ── Guest booking submission (Way 1) ───────────────────────
-  window.cwSubmitGuestBooking = async function() {
-    const guestName  = document.getElementById('cw-book-name').value.trim()
+  window.cwSubmitGuestBooking = async function () {
+    const guestName = document.getElementById('cw-book-name').value.trim()
     const guestPhone = document.getElementById('cw-book-phone').value.trim()
     const guestEmail = document.getElementById('cw-book-email').value.trim()
-    const notes      = document.getElementById('cw-book-notes').value.trim()
-    const errEl      = document.getElementById('cw-book-error')
+    const notes = document.getElementById('cw-book-notes').value.trim()
+    const errEl = document.getElementById('cw-book-error')
 
     if (!guestName) { errEl.textContent = 'Please enter your name.'; errEl.classList.add('show'); return }
     if (!guestPhone) { errEl.textContent = 'Please enter your phone number.'; errEl.classList.add('show'); return }
@@ -783,7 +783,7 @@ How can I help you today?`
   }
 
   // ── My appointments (logged-in only) ───────────────────────
-  window.cwShowMyAppointments = async function() {
+  window.cwShowMyAppointments = async function () {
     if (!cwLoggedIn) { cwOpenAuth(); return }
     const loader = cwAddWidget('<div style="text-align:center;padding:14px;font-size:11.5px;color:var(--cw-muted)">Loading your appointments…</div>')
     try {
@@ -822,7 +822,7 @@ How can I help you today?`
         cwAddBubble(`I couldn't find booking **${bookingRef}** on your account. Please double-check the reference 😊`, 'bot'); return
       }
       const statusColor = appt.status === 'confirmed' ? '#2d6a4f' : '#c0392b'
-      const statusBg    = appt.status === 'confirmed' ? '#d8f3dc' : '#fde8e8'
+      const statusBg = appt.status === 'confirmed' ? '#d8f3dc' : '#fde8e8'
       cwAddWidget(`<div style="padding:2px;">
         <div style="font-size:9.5px;font-weight:700;letter-spacing:.08em;color:var(--cw-muted);margin-bottom:8px;">BOOKING FOUND</div>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;">
@@ -840,20 +840,20 @@ How can I help you today?`
   }
 
   // ── Send message ───────────────────────────────────────────
-  window.cwSendQuick = function(text) { $input.value = text; cwSendMessage() }
+  window.cwSendQuick = function (text) { $input.value = text; cwSendMessage() }
 
-  window.cwSendMessage = async function() {
+  window.cwSendMessage = async function () {
     const msg = $input.value.trim()
     if (!msg || cwIsLoading) return
     if (msg.length > 100) { cwShowToast('Max 100 characters!'); return }
-    if (cwRemaining <= 0)  { cwShowToast('Daily message limit reached 😊'); return }
+    if (cwRemaining <= 0) { cwShowToast('Daily message limit reached 😊'); return }
 
     const lower = msg.toLowerCase()
     const isRescheduleIntent = /\b(reschedule|change.*time|change.*date|change.*appointment|move.*appointment|update.*appointment)\b/.test(lower)
-    const isBookIntent       = !isRescheduleIntent && /\b(book|appointment|schedule|reserve|slot|want to book|like to book)\b/.test(lower)
-    const isServiceIntent    = /\b(service|treatment|offer|price|cost|how much|menu|what do you have)\b/.test(lower)
-    const isMyAppts          = /\b(my booking|my appointment|my reservation|what did i book)\b/.test(lower)
-    const isCancelIntent     = /\b(cancel|cancellation)\b/.test(lower)
+    const isBookIntent = !isRescheduleIntent && /\b(book|appointment|schedule|reserve|slot|want to book|like to book)\b/.test(lower)
+    const isServiceIntent = /\b(service|treatment|offer|price|cost|how much|menu|what do you have)\b/.test(lower)
+    const isMyAppts = /\b(my booking|my appointment|my reservation|what did i book)\b/.test(lower)
+    const isCancelIntent = /\b(cancel|cancellation)\b/.test(lower)
 
     // Service info — always allowed
     if (isServiceIntent && !isBookIntent) {
