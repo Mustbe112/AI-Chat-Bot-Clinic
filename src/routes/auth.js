@@ -7,7 +7,7 @@ const supabase = require('../services/supabase')
 const JWT_SECRET      = process.env.JWT_SECRET
 const SALT_ROUNDS     = 10
 const TOKEN_EXPIRES   = '1h'    // stay logged in for 1 hour
-const SESSION_TIMEOUT = 60 * 60 // 1 hour of inactivity (seconds)
+const SESSION_TIMEOUT = 30 // 1 hour of inactivity (seconds)
 
 // In-memory rate limiter
 // Keyed by IP. Each entry: { count, resetAt }
