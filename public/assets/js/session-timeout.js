@@ -1,21 +1,32 @@
 ;(function () {
   const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
 
-  const SESSION_TIMEOUT_SEC = 60 * 60  //1 hour
-  const WARNING_BEFORE_SEC  = 120    // 2 mins
-  const SESSION_TIMEOUT_MS = SESSION_TIMEOUT_SEC * 1000
-  const WARNING_AT_MS      = (SESSION_TIMEOUT_SEC - WARNING_BEFORE_SEC) * 1000
+  const SESSION_TIMEOUT_SEC = 60 * 60  // 1 hour
+  const WARNING_BEFORE_SEC  = 120      // warn 2 mins before
+  const SESSION_TIMEOUT_MS  = SESSION_TIMEOUT_SEC * 1000
+  const WARNING_AT_MS       = (SESSION_TIMEOUT_SEC - WARNING_BEFORE_SEC) * 1000
 
   const LOGIN_URL = '/pages/login.html'
 
+  // No token in localStorage — check cookie validity via /auth/me
+  // If server returns 401, cookie is gone/expired → don't run timers
+  let sessionActive = false
 
-  if (!localStorage.getItem('lc_token')) return
+  fetch(API_BASE + '/auth/me', { credentials: 'include' })
+    .then(function (res) {
+      if (!res.ok) return  // not logged in, do nothing
+      sessionActive = true
+      resetTimers()
+    })
+    .catch(function () {
+      // Network error on init — skip, don't break the page
+    })
 
   let warningTimer = null
   let logoutTimer  = null
   let modalEl      = null
 
-  // Modal UI
+  // ── Modal UI ──────────────────────────────────────────────
   function createModal() {
     if (modalEl) return modalEl
 
@@ -55,7 +66,8 @@
     document.body.appendChild(overlay)
     modalEl = overlay
 
-    document.getElementById('session-timeout-stay').addEventListener('click', stayLoggedIn)
+    document.getElementById('session-timeout-stay')
+      .addEventListener('click', stayLoggedIn)
 
     return overlay
   }
@@ -64,10 +76,9 @@
     const overlay = createModal()
     overlay.style.display = 'flex'
 
-    // Countdown text
     let remaining = WARNING_BEFORE_SEC
     const countdownEl = document.getElementById('session-timeout-countdown')
-    const tick = setInterval(() => {
+    const tick = setInterval(function () {
       remaining -= 1
       if (countdownEl) countdownEl.textContent = String(Math.max(remaining, 0))
       if (remaining <= 0) clearInterval(tick)
@@ -82,49 +93,48 @@
     if (modalEl._tick) clearInterval(modalEl._tick)
   }
 
-  // Logout
+  // ── Logout ────────────────────────────────────────────────
   function doLogout(reason) {
     clearTimers()
     hideModal()
-    localStorage.removeItem('lc_token')
-    localStorage.removeItem('lc_user')
-    window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason } }))
 
-    const params = new URLSearchParams()
-    if (reason) params.set('reason', reason)
-    const qs = params.toString()
-    window.location.href = LOGIN_URL + (qs ? '?' + qs : '')
+    // Tell the server to clear the HttpOnly cookie
+    fetch(API_BASE + '/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    }).finally(function () {
+      sessionStorage.removeItem('lc_user')
+      window.dispatchEvent(new CustomEvent('auth:logout', { detail: { reason } }))
+
+      const params = new URLSearchParams()
+      if (reason) params.set('reason', reason)
+      const qs = params.toString()
+      window.location.href = LOGIN_URL + (qs ? '?' + qs : '')
+    })
   }
 
-  //Stay logged in: refresh token via /auth/me
+  // ── Stay logged in: ping /auth/me so server refreshes cookie ─
   async function stayLoggedIn() {
     hideModal()
-    const token = localStorage.getItem('lc_token')
-    if (!token) return doLogout('session_expired')
 
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch(API_BASE + '/auth/me', {
+        credentials: 'include'   // sends the cookie; server issues a fresh one
       })
 
       if (res.status === 401) {
-        // Token already timed out server-side
         return doLogout('session_expired')
       }
 
-      const refreshed = res.headers.get('X-Refreshed-Token')
-      if (refreshed) {
-        localStorage.setItem('lc_token', refreshed)
-      }
-
+      // Cookie was silently refreshed by the server — just reset our timers
       resetTimers()
     } catch (err) {
-      // Network error — don't force logout, just retry on next activity
+      // Network error — don't force logout, retry on next activity
       resetTimers()
     }
   }
 
-  // Timers 
+  // ── Timers ────────────────────────────────────────────────
   function clearTimers() {
     if (warningTimer) clearTimeout(warningTimer)
     if (logoutTimer)  clearTimeout(logoutTimer)
@@ -136,30 +146,29 @@
     clearTimers()
     hideModal()
     warningTimer = setTimeout(showModal, WARNING_AT_MS)
-    logoutTimer  = setTimeout(() => doLogout('inactivity'), SESSION_TIMEOUT_MS)
+    logoutTimer  = setTimeout(function () { doLogout('inactivity') }, SESSION_TIMEOUT_MS)
   }
 
-  // Activity listeners
+  // ── Activity listeners ────────────────────────────────────
   // Reset idle timers on genuine user interaction.
-  // (Do NOT reset on background API calls — only real user activity.)
+  // Do NOT reset while the warning modal is showing —
+  // the user must explicitly click "Stay logged in".
   const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart']
 
   let activityThrottle = false
   function onActivity() {
-    // While the warning modal is showing, activity should NOT silently
-    // reset the timer — the user must explicitly click "Stay logged in".
+    if (!sessionActive) return
     if (modalEl && modalEl.style.display === 'flex') return
-
     if (activityThrottle) return
+
     activityThrottle = true
-    setTimeout(() => { activityThrottle = false }, 1000) // throttle to once/sec
+    setTimeout(function () { activityThrottle = false }, 1000)
 
     resetTimers()
   }
 
-  ACTIVITY_EVENTS.forEach(evt =>
+  ACTIVITY_EVENTS.forEach(function (evt) {
     window.addEventListener(evt, onActivity, { passive: true })
-  )
+  })
 
-  resetTimers()
-})()
+}())

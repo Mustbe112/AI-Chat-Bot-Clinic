@@ -1,39 +1,56 @@
-const express = require('express')
-const cors = require('cors')
-const path = require('path')
+const express      = require('express')
+const cors         = require('cors')
+const cookieParser = require('cookie-parser')
+const path         = require('path')
 require('dotenv').config()
 
-const { router: authRoutes } = require('./routes/auth')   // auth.js exports { router, authMiddleware }
-const chatRoutes = require('./routes/chat')
-const appointmentRoutes = require('./routes/appointment')
+const { router: authRoutes } = require('./routes/auth')
+const chatRoutes              = require('./routes/chat')
+const appointmentRoutes       = require('./routes/appointment')
 
-const app = express()
+const app  = express()
 const PORT = process.env.PORT || 3000
 
-//  MIDDLEWARE
+// ---------------------------------------------------------------------------
+// CORS
+// ---------------------------------------------------------------------------
+// credentials: true is required so the browser sends the HttpOnly cookie
+// on cross-origin requests (e.g. Vercel frontend → Render backend).
+// The origin function still allows localhost + your production domain +
+// any Vercel preview deployment.
+// ---------------------------------------------------------------------------
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'https://ai-chat-bot-clinic.vercel.app'
+]
 
 app.use(cors({
-  origin: function (origin, callback) {
-    const allowed = [
-      'http://localhost:3000',
-      'https://ai-chat-bot-clinic.vercel.app'
-    ]
-    // Also allow Vercel preview deployments
-    if (!origin || allowed.includes(origin) || origin.endsWith('.vercel.app')) {
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app')) {
       callback(null, true)
     } else {
       callback(new Error('Not allowed by CORS'))
     }
   },
-  credentials: true
+  credentials: true  // required for cookies to be sent cross-origin
 }))
+
+// ---------------------------------------------------------------------------
+// MIDDLEWARE
+// ---------------------------------------------------------------------------
 app.use(express.json())
+
+// cookie-parser must come before any route that reads req.cookies
+// Pass COOKIE_SECRET so cookies can be signed (optional but good practice)
+app.use(cookieParser(process.env.COOKIE_SECRET))
+
 app.use(express.static(path.join(__dirname, '../public'), { index: false }))
 
-//  ROUTES
-
-app.use('/auth', authRoutes)
-app.use('/chat', chatRoutes)
+// ---------------------------------------------------------------------------
+// ROUTES
+// ---------------------------------------------------------------------------
+app.use('/auth',         authRoutes)
+app.use('/chat',         chatRoutes)
 app.use('/appointments', appointmentRoutes)
 
 // Health check (for UptimeRobot / Render keep-alive)
@@ -42,15 +59,16 @@ app.get('/health', (req, res) => {
 })
 
 // Serve HTML pages
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')))
-app.get('/chatbot', (req, res) => res.sendFile(path.join(__dirname, '../public/pages/chatbot.html')))
-app.get('/price', (req, res) => res.sendFile(path.join(__dirname, '../public/pages/price.html')))
-app.get('/about', (req, res) => res.sendFile(path.join(__dirname, '../public/pages/about.html')))
-app.get('/booking', (req, res) => res.sendFile(path.join(__dirname, '../public/pages/booking.html')))
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, '../public/pages/login.html')))
+app.get('/',         (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')))
+app.get('/chatbot',  (req, res) => res.sendFile(path.join(__dirname, '../public/pages/chatbot.html')))
+app.get('/price',    (req, res) => res.sendFile(path.join(__dirname, '../public/pages/price.html')))
+app.get('/about',    (req, res) => res.sendFile(path.join(__dirname, '../public/pages/about.html')))
+app.get('/booking',  (req, res) => res.sendFile(path.join(__dirname, '../public/pages/booking.html')))
+app.get('/login',    (req, res) => res.sendFile(path.join(__dirname, '../public/pages/login.html')))
 
-//  START SERVER
-
+// ---------------------------------------------------------------------------
+// START SERVER
+// ---------------------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`Running on http://localhost:${PORT} `)
+  console.log(`Running on http://localhost:${PORT}`)
 })

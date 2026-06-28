@@ -7,7 +7,19 @@ const supabase = require('../services/supabase')
 const JWT_SECRET      = process.env.JWT_SECRET
 const SALT_ROUNDS     = 10
 const TOKEN_EXPIRES   = '1h'    // stay logged in for 1 hour
-const SESSION_TIMEOUT = 30 // 1 hour of inactivity (seconds)
+const SESSION_TIMEOUT = 30 * 60 // 30 min of inactivity (seconds)
+
+// On localhost (plain HTTP) cookies marked Secure are silently dropped
+// by the browser, and SameSite=None requires Secure to be set at all —
+// so both flags must flip together based on environment.
+const IS_PROD = process.env.NODE_ENV === 'production'
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure:   IS_PROD,                  // true in prod (HTTPS), false on localhost (HTTP)
+  sameSite: IS_PROD ? 'none' : 'lax',  // 'none' needed cross-site in prod; 'lax' works fine on localhost
+  maxAge:   60 * 60 * 1000 // 1h, matches TOKEN_EXPIRES
+}
 
 // In-memory rate limiter
 // Keyed by IP. Each entry: { count, resetAt }
@@ -64,17 +76,18 @@ setInterval(() => {
 //     The client must swap its stored token for this value on every
 //     response that includes it — this silently resets the idle clock.
 function authMiddleware(req, res, next) {
-  const header = req.headers.authorization
-  if (!header || !header.startsWith('Bearer ')) {
+  const token = req.cookies && req.cookies.token
+  if (!token) {
     return res.status(401).json({ success: false, message: 'Not authenticated.' })
   }
   try {
-    const payload = jwt.verify(header.slice(7), JWT_SECRET)
+    const payload = jwt.verify(token, JWT_SECRET)
     req.userId = payload.userId
 
     // Check inactivity
     const lastActive = payload.lastActive || payload.iat
     if (Math.floor(Date.now() / 1000) - lastActive > SESSION_TIMEOUT) {
+      res.clearCookie('token', COOKIE_OPTIONS)
       return res.status(401).json({
         success: false,
         message: 'Session expired due to inactivity. Please log in again.',
@@ -88,7 +101,7 @@ function authMiddleware(req, res, next) {
       JWT_SECRET,
       { expiresIn: TOKEN_EXPIRES }
     )
-    res.set('X-Refreshed-Token', refreshed)
+    res.cookie('token', refreshed, COOKIE_OPTIONS)
 
     next()
   } catch {
@@ -160,10 +173,11 @@ router.post('/register', rateLimit('register'), async (req, res) => {
       { expiresIn: TOKEN_EXPIRES }
     )
 
+    res.cookie('token', token, COOKIE_OPTIONS)
+
     res.status(201).json({
       success: true,
       message: 'Account created successfully.',
-      token,
       user: {
         id:          user.id,
         displayName: user.display_name,
@@ -209,9 +223,10 @@ router.post('/login', rateLimit('login'), async (req, res) => {
       { expiresIn: TOKEN_EXPIRES }
     )
 
+    res.cookie('token', token, COOKIE_OPTIONS)
+
     res.json({
       success: true,
-      token,
       user: {
         id:          user.id,
         displayName: user.display_name,
@@ -230,6 +245,7 @@ router.post('/login', rateLimit('login'), async (req, res) => {
 //  POST /auth/logout  (stateless JWT — client clears token)
 
 router.post('/logout', (req, res) => {
+  res.clearCookie('token', COOKIE_OPTIONS)
   res.json({ success: true, message: 'Logged out.' })
 })
 

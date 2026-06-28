@@ -838,15 +838,14 @@ I'm your AI skin consultant. I can help you with:
   wakeServer()
 
   // ═══════════════════════════════════════════════════════════
-  //  AUTH STATE
+  //  AUTH STATE  (cookie-based — same as auth-nav.js site-wide)
   // ═══════════════════════════════════════════════════════════
-  let authToken  = localStorage.getItem('lc_token') || null
   let authUser   = null
   let isLoggedIn = false
 
-  // Instantly restore from cache (same as other pages)
-  const _cachedUser = localStorage.getItem('lc_user')
-  if (authToken && _cachedUser) {
+  // Instantly restore display info from cache (non-sensitive only)
+  const _cachedUser = sessionStorage.getItem('lc_user')
+  if (_cachedUser) {
     try { authUser = JSON.parse(_cachedUser); isLoggedIn = true } catch {}
   }
 
@@ -856,16 +855,26 @@ I'm your AI skin consultant. I can help you with:
     localStorage.setItem('clinicSessionId', sessionId)
   }
 
-  // Restore session on load
-  if (authToken) verifyToken()
+  // Always verify against the server — the HttpOnly cookie is the
+  // real source of truth, the cached user above is just for instant UI.
+  verifyToken()
 
   async function verifyToken() {
     try {
-      const r = await fetch(`${API_BASE}/auth/me`, { headers: { Authorization: `Bearer ${authToken}` } })
+      const r = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
       const d = await r.json()
-      if (d.success) { authUser = d.user; isLoggedIn = true; updateAuthUI() }
-      else { authToken = null; localStorage.removeItem('lc_token') }
-    } catch { authToken = null; localStorage.removeItem('lc_token') }
+      if (d.success) {
+        authUser = d.user; isLoggedIn = true
+        sessionStorage.setItem('lc_user', JSON.stringify(authUser))
+        updateAuthUI()
+      } else {
+        authUser = null; isLoggedIn = false
+        sessionStorage.removeItem('lc_user')
+        updateAuthUI()
+      }
+    } catch {
+      // Network error — keep whatever cached state we have
+    }
   }
 
   function updateAuthUI() {
@@ -930,16 +939,17 @@ How can I help you today?`
     btn.disabled = true; btn.textContent = 'Logging in…'
     try {
       const r = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        credentials: 'include', // required so the browser stores the HttpOnly auth cookie
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       })
       const d = await r.json()
       if (d.success) {
-        authToken = d.token; authUser = d.user; isLoggedIn = true
-        localStorage.setItem('lc_token', authToken)
-        localStorage.setItem('lc_user', JSON.stringify(authUser))
+        authUser = d.user; isLoggedIn = true
+        sessionStorage.setItem('lc_user', JSON.stringify(authUser))
         // Notify navbar (and any other listeners) without a page refresh
-        window.dispatchEvent(new CustomEvent('auth:login', { detail: { token: authToken, user: authUser } }))
+        window.dispatchEvent(new CustomEvent('auth:login', { detail: { user: authUser } }))
         closeAuthModal(); updateAuthUI()
         addBubble(`Welcome back, **${authUser.displayName}**! 🌸 You're now logged in. You can book, cancel, and reschedule via chat. How can I help?`, 'bot')
       } else { setAuthError(d.message || 'Login failed.') }
@@ -958,16 +968,17 @@ How can I help you today?`
     btn.disabled = true; btn.textContent = 'Creating account…'
     try {
       const r = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        credentials: 'include', // required so the browser stores the HttpOnly auth cookie
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, idNumber, password })
       })
       const d = await r.json()
       if (d.success) {
-        authToken = d.token; authUser = d.user; isLoggedIn = true
-        localStorage.setItem('lc_token', authToken)
-        localStorage.setItem('lc_user', JSON.stringify(authUser))
+        authUser = d.user; isLoggedIn = true
+        sessionStorage.setItem('lc_user', JSON.stringify(authUser))
         // Notify navbar (and any other listeners) without a page refresh
-        window.dispatchEvent(new CustomEvent('auth:login', { detail: { token: authToken, user: authUser } }))
+        window.dispatchEvent(new CustomEvent('auth:login', { detail: { user: authUser } }))
         closeAuthModal(); updateAuthUI()
         addBubble(`Account created! Welcome, **${authUser.displayName}**! 🌸 You can now book, cancel, and reschedule via chat. How can I help today?`, 'bot')
       } else { setAuthError(d.message || 'Registration failed.') }
@@ -976,12 +987,13 @@ How can I help you today?`
   }
 
   function doLogout() {
-    authToken = null; authUser = null; isLoggedIn = false
-    localStorage.removeItem('lc_token')
-    localStorage.removeItem('lc_user')
-    localStorage.removeItem('cw-token')
-    updateAuthUI()
-    addBubble("You've been logged out. You can still browse services and get recommendations. 😊", 'bot')
+    fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' }).finally(() => {
+      authUser = null; isLoggedIn = false
+      sessionStorage.removeItem('lc_user')
+      window.dispatchEvent(new Event('auth:logout'))
+      updateAuthUI()
+      addBubble("You've been logged out. You can still browse services and get recommendations. 😊", 'bot')
+    })
   }
 
   // ── Guest booking modal ────────────────────────────────────
@@ -1314,7 +1326,8 @@ How can I help you today?`
       try {
         const r = await fetch(`${API_BASE}/chat`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: `Book ${thaiSlot}`, sessionId })
         })
         const d = await r.json()
@@ -1333,7 +1346,8 @@ How can I help you today?`
       try {
         const r = await fetch(`${API_BASE}/appointments/book`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ serviceId: pendingServiceId, slotDatetime: pendingSlot })
         })
         const d = await r.json()
@@ -1365,7 +1379,7 @@ How can I help you today?`
     if (!isLoggedIn) { openAuthModal(); return }
     const loader = addWidget('<div style="text-align:center;padding:16px;font-size:12px;color:var(--muted-w)">Loading your appointments…</div>')
     try {
-      const r = await fetch(`${API_BASE}/appointments/my`, { headers: { Authorization: `Bearer ${authToken}` } })
+      const r = await fetch(`${API_BASE}/appointments/my`, { credentials: 'include' })
       const d = await r.json()
       loader.remove()
       const confirmed = (d.appointments || []).filter(a => a.status === 'confirmed')
@@ -1384,7 +1398,7 @@ How can I help you today?`
   async function showBookingReceipt(bookingRef) {
     if (!isLoggedIn) return
     try {
-      const r = await fetch(`${API_BASE}/appointments/my`, { headers: { Authorization: `Bearer ${authToken}` } })
+      const r = await fetch(`${API_BASE}/appointments/my`, { credentials: 'include' })
       const d = await r.json()
       if (!d.success) return
       const appt = (d.appointments || []).find(a => a.booking_ref === bookingRef)
@@ -1498,11 +1512,10 @@ How can I help you today?`
     }
 
     try {
-      const headers = { 'Content-Type': 'application/json' }
-      if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-
       const r = await fetch(`${API_BASE}/chat`, {
-        method: 'POST', headers,
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, sessionId })
       })
       const d = await r.json()

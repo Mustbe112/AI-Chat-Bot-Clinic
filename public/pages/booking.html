@@ -797,7 +797,7 @@
 
     // ── Nav auth state ────────────────────────────────────
     function initAuth() {
-      const user = JSON.parse(localStorage.getItem('lc_user') || 'null')
+      const user = JSON.parse(sessionStorage.getItem('lc_user') || 'null')
       if (user) {
         document.getElementById('nav-auth-link').textContent = user.displayName.split(' ')[0]
         document.getElementById('mobile-auth-link').textContent = user.displayName.split(' ')[0]
@@ -1089,15 +1089,31 @@
         notes:         document.getElementById('guest-notes').value.trim() || undefined,
       }
 
-      // Determine endpoint — use /book if logged in, /book-guest if not
-      const token    = localStorage.getItem('lc_token')
-      const endpoint = token ? `${API_BASE}/appointments/book` : `${API_BASE}/appointments/book-guest`
-      const headers  = { 'Content-Type': 'application/json' }
-      if (token) headers['Authorization'] = 'Bearer ' + token
+      // Determine endpoint — use /book if logged in, /book-guest if not.
+      // Login state is read from the cached display info (sessionStorage);
+      // the real auth proof is the HttpOnly cookie, sent automatically below.
+      const user     = JSON.parse(sessionStorage.getItem('lc_user') || 'null')
+      const endpoint = user ? `${API_BASE}/appointments/book` : `${API_BASE}/appointments/book-guest`
 
       try {
-        const res  = await fetch(endpoint, { method:'POST', headers, body: JSON.stringify(payload) })
-        const data = await res.json()
+        const res  = await fetch(endpoint, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+        let data = await res.json()
+
+        // If the cookie session had actually expired, fall back to guest booking
+        if (!data.success && user && endpoint.endsWith('/book') && res.status === 401) {
+          const guestRes = await fetch(`${API_BASE}/appointments/book-guest`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+          data = await guestRes.json()
+        }
 
         if (data.success) {
           // Show success step

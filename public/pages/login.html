@@ -1000,15 +1000,15 @@
       try {
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: 'POST',
+          credentials: 'include', // required so the browser stores the HttpOnly auth cookie
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         })
         const data = await res.json()
 
         if (data.success) {
-          localStorage.setItem('lc_token', data.token)
-          localStorage.setItem('lc_user', JSON.stringify(data.user))
-          window.dispatchEvent(new CustomEvent('auth:login', { detail: { token: data.token, user: data.user } }))
+          sessionStorage.setItem('lc_user', JSON.stringify(data.user))
+          window.dispatchEvent(new CustomEvent('auth:login', { detail: { user: data.user } }))
           showAlert('login-alert', 'success', `Welcome back, ${data.user.displayName}! Redirecting…`)
           setTimeout(() => { window.location.href = '/' }, 1200)
           return // don't reset loading state after redirect begins
@@ -1050,15 +1050,15 @@
       try {
         const res = await fetch(`${API_BASE}/auth/register`, {
           method: 'POST',
+          credentials: 'include', // required so the browser stores the HttpOnly auth cookie
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone, email, idNumber, password })
         })
         const data = await res.json()
 
         if (data.success) {
-          localStorage.setItem('lc_token', data.token)
-          localStorage.setItem('lc_user', JSON.stringify(data.user))
-          window.dispatchEvent(new CustomEvent('auth:login', { detail: { token: data.token, user: data.user } }))
+          sessionStorage.setItem('lc_user', JSON.stringify(data.user))
+          window.dispatchEvent(new CustomEvent('auth:login', { detail: { user: data.user } }))
           showAlert('reg-alert', 'success', 'Account created! Redirecting to the AI assistant…')
           setTimeout(() => { window.location.href = '/' }, 1400)
           return // don't reset loading state after redirect begins
@@ -1086,13 +1086,9 @@
     })
 
     // ── Check if already logged in ────────────────────────
+    // (auth-nav.js's checkSession() already verifies the cookie session
+    // on load and updates the nav; nothing extra needed here.)
     window.addEventListener('DOMContentLoaded', () => {
-      const token = localStorage.getItem('lc_token')
-      if (token) {
-        // Already logged in — optionally redirect
-        // window.location.href = 'chatbot.html'
-      }
-
       // Support ?tab=register in URL
       const params = new URLSearchParams(location.search)
       if (params.get('tab') === 'register') switchTab('register')

@@ -1,20 +1,29 @@
 // ============================================================
 //  auth-nav.js  —  shared navbar auth state for all pages
+//  Auth: HttpOnly cookie (set by server) — no token in JS
 // ============================================================
 
 (function () {
 
+  const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+
   // ── Idle timeout ──────────────────────────────────────────
   // Logs the user out after 30 min of no mouse/keyboard/touch
   // activity on any page that includes this script.
-  const IDLE_MS  = 30 * 60 * 1000   // 30 minutes
-  const WARN_MS  =  2 * 60 * 1000   // warn 2 min before logout
-  let idleTimer  = null
-  let warnTimer  = null
-  let warnToast  = null
+  const IDLE_MS = 30 * 60 * 1000   // 30 minutes
+  const WARN_MS =  2 * 60 * 1000   // warn 2 min before logout
+  let idleTimer = null
+  let warnTimer = null
+  let warnToast = null
+
+  // We track login state in memory only — no localStorage token
+  // applyAuthToNav() reads lc_user (non-sensitive display data only)
+  function isLoggedIn() {
+    return !!sessionStorage.getItem('lc_user')
+  }
 
   function resetIdleTimer() {
-    if (!localStorage.getItem('lc_token')) return  // only when logged in
+    if (!isLoggedIn()) return
     clearTimeout(idleTimer)
     clearTimeout(warnTimer)
     dismissWarnToast()
@@ -49,21 +58,25 @@
   }
 
   function doIdleLogout() {
-    localStorage.removeItem('lc_token')
-    localStorage.removeItem('lc_user')
-    localStorage.removeItem('cw-token')
-    window.dispatchEvent(new Event('auth:logout'))
-    applyAuthToNav()
-    // Show notice then redirect
-    const msg = document.createElement('div')
-    msg.textContent = 'You were logged out due to inactivity.'
-    msg.style.cssText =
-      'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);' +
-      'background:#1a2236;color:#fff;padding:11px 20px;border-radius:10px;' +
-      'font-size:13px;font-family:Jost,sans-serif;' +
-      'box-shadow:0 4px 20px rgba(0,0,0,0.25);z-index:99999;'
-    document.body.appendChild(msg)
-    setTimeout(function () { msg.remove(); window.location.href = '/' }, 2500)
+    // Tell the server to clear the cookie
+    fetch(API_BASE + '/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    }).finally(function () {
+      sessionStorage.removeItem('lc_user')
+      window.dispatchEvent(new Event('auth:logout'))
+      applyAuthToNav()
+
+      const msg = document.createElement('div')
+      msg.textContent = 'You were logged out due to inactivity.'
+      msg.style.cssText =
+        'position:fixed;bottom:90px;left:50%;transform:translateX(-50%);' +
+        'background:#1a2236;color:#fff;padding:11px 20px;border-radius:10px;' +
+        'font-size:13px;font-family:Jost,sans-serif;' +
+        'box-shadow:0 4px 20px rgba(0,0,0,0.25);z-index:99999;'
+      document.body.appendChild(msg)
+      setTimeout(function () { msg.remove(); window.location.href = '/' }, 2500)
+    })
   }
 
   // Reset timer on any user activity
@@ -72,34 +85,32 @@
     window.addEventListener(evt, resetIdleTimer, { passive: true })
   })
 
-  // Start timer on login, stop on logout
   window.addEventListener('auth:login',  function () { resetIdleTimer() })
   window.addEventListener('auth:logout', function () {
     clearTimeout(idleTimer); clearTimeout(warnTimer); dismissWarnToast()
   })
 
-  // Kick off on load if already logged in
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', resetIdleTimer)
   } else {
     resetIdleTimer()
   }
 
-  // ── Apply auth state to the navbar ──────────────────────
+  // ── Apply auth state to the navbar ───────────────────────
   function applyAuthToNav() {
-    const user  = JSON.parse(localStorage.getItem('lc_user') || 'null')
-    const token = localStorage.getItem('lc_token')
+    // lc_user holds only display data (name, avatar) — not sensitive
+    // The real auth proof is the HttpOnly cookie, invisible to JS
+    const user = JSON.parse(sessionStorage.getItem('lc_user') || 'null')
 
     const authBtn      = document.getElementById('nav-auth-btn')
     const mobileBtn    = document.getElementById('mobile-auth-btn')
     const logoutBtn    = document.getElementById('nav-logout-btn')
     const mobileLogout = document.getElementById('mobile-logout-btn')
 
-    if (user && token) {
+    if (user) {
       // ── Logged-in state ──────────────────────────────────
       const firstName = user.displayName ? user.displayName.split(' ')[0] : 'Me'
 
-      // Desktop: replace Sign In link with avatar chip
       if (authBtn && authBtn.id === 'nav-auth-btn') {
         authBtn.outerHTML = `
           <a href="/chatbot" class="nav-user-chip" id="nav-auth-btn">
@@ -111,19 +122,16 @@
           </a>`
       }
 
-      // Mobile: change link text + destination
       if (mobileBtn) {
         mobileBtn.textContent = firstName
         mobileBtn.href = '/chatbot'
       }
 
-      // Show logout buttons
       if (logoutBtn)    logoutBtn.style.display    = 'inline-flex'
       if (mobileLogout) mobileLogout.style.display = 'block'
 
     } else {
       // ── Logged-out state ─────────────────────────────────
-      // Restore Sign In link if it was replaced
       const chip = document.querySelector('.nav-user-chip#nav-auth-btn')
       if (chip) {
         chip.outerHTML = `<a href="/login" id="nav-auth-btn">Sign In</a>`
@@ -139,32 +147,56 @@
 
   // ── Logout helper (global so onclick="navLogout()" works) ─
   window.navLogout = function () {
-    localStorage.removeItem('lc_token')
-    localStorage.removeItem('lc_user')
-    localStorage.removeItem('cw-token')
-    // Notify other parts of the page
-    window.dispatchEvent(new Event('auth:logout'))
-    window.location.href = '/'
+    fetch(API_BASE + '/auth/logout', {
+      method: 'POST',
+      credentials: 'include'   // sends the cookie so server can clear it
+    }).finally(function () {
+      sessionStorage.removeItem('lc_user')
+      window.dispatchEvent(new Event('auth:logout'))
+      window.location.href = '/'
+    })
+  }
+
+  // ── Verify session on page load via /auth/me ─────────────
+  // Since JS can't read the HttpOnly cookie, we ask the server
+  // if the cookie is still valid. If yes, we get user data back.
+  function checkSession() {
+    fetch(API_BASE + '/auth/me', {
+      credentials: 'include'   // sends the cookie automatically
+    })
+    .then(function (res) {
+      if (!res.ok) {
+        sessionStorage.removeItem('lc_user')
+        applyAuthToNav()
+        return
+      }
+      return res.json()
+    })
+    .then(function (data) {
+      if (data && data.user) {
+        sessionStorage.setItem('lc_user', JSON.stringify(data.user))
+        applyAuthToNav()
+        resetIdleTimer()
+      }
+    })
+    .catch(function () {
+      // Network error — keep whatever state we have
+      applyAuthToNav()
+    })
   }
 
   // ── Run on page load ──────────────────────────────────────
-  // Use DOMContentLoaded so elements exist; fall back to
-  // immediate call if the script is deferred / at bottom.
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', applyAuthToNav)
+    document.addEventListener('DOMContentLoaded', checkSession)
   } else {
-    applyAuthToNav()
+    checkSession()
   }
 
-  // ── React to chatbot login WITHOUT a page refresh ─────────
-  // chatbot.html dispatches 'auth:login' after doLogin() /
-  // doRegister() succeed. Any other page open in the same tab
-  // (e.g. if the chatbot is embedded) will catch this too.
+  // ── React to login events (e.g. from chatbot page) ────────
   window.addEventListener('auth:login', function (e) {
-    // e.detail may carry { user, token } — save them first
-    if (e.detail) {
-      if (e.detail.token) localStorage.setItem('lc_token', e.detail.token)
-      if (e.detail.user)  localStorage.setItem('lc_user', JSON.stringify(e.detail.user))
+    if (e.detail && e.detail.user) {
+      // Store only display data — never the token
+      sessionStorage.setItem('lc_user', JSON.stringify(e.detail.user))
     }
     applyAuthToNav()
   })
@@ -173,13 +205,8 @@
     applyAuthToNav()
   })
 
-  // ── Storage event: sync across browser tabs ───────────────
-  // When the user logs in on another tab, this tab's navbar
-  // updates automatically without a refresh.
-  window.addEventListener('storage', function (e) {
-    if (e.key === 'lc_user' || e.key === 'lc_token') {
-      applyAuthToNav()
-    }
-  })
+  // NOTE: cross-tab sync via storage event is removed —
+  // sessionStorage is intentionally tab-scoped. Each tab
+  // independently verifies its session via /auth/me on load.
 
-})()
+}())
