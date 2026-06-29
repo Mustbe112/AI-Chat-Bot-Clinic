@@ -15,7 +15,7 @@
       stroke-width: 1.8;
     }
 
-    /* ── AUTH PAGE LAYOUT ─────────────────────────────────── */
+    /*AUTH PAGE LAYOUT*/
     .auth-page {
       min-height: 100vh;
       display: grid;
@@ -493,7 +493,7 @@
       }
     }
 
-    /* ── ANIMATIONS ──────────────────────────────────────── */
+    /*ANIMATIONS*/
 
     /* Page entrance — right form panel slides up */
     @keyframes authBoxIn {
@@ -646,7 +646,7 @@
 
 <body>
 
-  <!-- ── NAV ─────────────────────────────────────────────── -->
+  <!--NAV-->
   <nav class="nav">
     <div class="nav-inner">
       <a href="/" class="nav-logo">
@@ -674,7 +674,7 @@
     <a href="/booking" class="nav-cta">Book Now</a>
   </div>
 
-  <!-- ── AUTH PAGE ─────────────────────────────────────────── -->
+  <!--AUTH PAGE-->
   <div class="auth-page">
 
     <!-- Left decorative panel -->
@@ -726,7 +726,7 @@
           <button class="auth-tab" id="tab-register" onclick="switchTab('register')">Create Account</button>
         </div>
 
-        <!-- ── LOGIN FORM ─────────────────────────────────── -->
+        <!--LOGIN FORM-->
         <div class="auth-tabs-content">
         <div class="auth-form-panel-inner active" id="panel-login">
           <div class="auth-title">Welcome back</div>
@@ -774,7 +774,7 @@
           </div>
         </div>
 
-        <!-- ── REGISTER FORM ───────────────────────────────── -->
+        <!--REGISTER FORM-->
         <div class="auth-form-panel-inner" id="panel-register">
           <div class="auth-title">Create account</div>
           <div class="auth-subtitle">Join Lumière for a personalised experience</div>
@@ -867,7 +867,7 @@
   <script>
     const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
 
-    // ── Tab switching with animation ──────────────────────
+    //Tab switching with animation
     function switchTab(tab) {
       const currentPanel = document.querySelector('.auth-form-panel-inner.active')
       const nextPanel    = document.getElementById('panel-' + tab)
@@ -910,7 +910,7 @@
       }))
     }
 
-    // ── Toggle password visibility ────────────────────────
+    //Toggle password visibility
     function togglePw(inputId, btn) {
       const input = document.getElementById(inputId)
       const isText = input.type === 'text'
@@ -921,7 +921,7 @@
       lucide.createIcons()
     }
 
-    // ── Password strength ─────────────────────────────────
+    //Password strength
     function checkPwStrength(pw) {
       const el = document.getElementById('pw-strength')
       const fill = document.getElementById('pw-strength-fill')
@@ -950,7 +950,7 @@
       label.style.color = lvl.color
     }
 
-    // ── Show alert ────────────────────────────────────────
+    //Show alert
     function showAlert(id, type, msg) {
       const el = document.getElementById(id)
       el.className = 'auth-alert show ' + type
@@ -958,7 +958,7 @@
       lucide.createIcons()
     }
 
-    // ── Set loading state ─────────────────────────────────
+    //Set loading state
     // Maps logical prefix → actual element ID prefixes in the HTML
     const ID_MAP = {
       login: { btn: 'btn-login', spinner: 'login-spinner', text: 'login-btn-text', arrow: 'login-arrow' },
@@ -978,7 +978,7 @@
       if (arrow) arrow.style.display = loading ? 'none' : ''
     }
 
-    // ── Login ─────────────────────────────────────────────
+    //Login 
     async function handleLogin() {
       const email = document.getElementById('login-email').value.trim()
       const password = document.getElementById('login-password').value
@@ -1027,7 +1027,7 @@
       setLoading('login', false)
     }
 
-    // ── Register ──────────────────────────────────────────
+    //Register
     async function handleRegister() {
       const name = document.getElementById('reg-name').value.trim()
       const phone = document.getElementById('reg-phone').value.trim()
@@ -1077,7 +1077,7 @@
       setLoading('register', false)
     }
 
-    // ── Enter key support ─────────────────────────────────
+    //Enter key support
     document.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return
       const active = document.querySelector('.auth-form-panel-inner.active')
@@ -1085,7 +1085,7 @@
       else handleRegister()
     })
 
-    // ── Check if already logged in ────────────────────────
+    //Check if already logged in
     // (auth-nav.js's checkSession() already verifies the cookie session
     // on load and updates the nav; nothing extra needed here.)
     window.addEventListener('DOMContentLoaded', () => {

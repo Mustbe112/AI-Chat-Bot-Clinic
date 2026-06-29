@@ -9,7 +9,7 @@
   <style>
     [data-lucide]{width:1em;height:1em;vertical-align:middle;stroke-width:1.8;}
 
-    /* ── BOOKING PAGE ─────────────────────────────────────── */
+    /*BOOKING PAGE */
     .booking-page {
       min-height: 100vh;
       background: var(--off-white);
@@ -46,7 +46,7 @@
     }
     .booking-hero-note i { color: var(--gold); }
 
-    /* ── Steps indicator — redesigned ───────────────────── */
+    /*Steps indicator — redesigned*/
     .steps-bar {
       background: var(--white);
       border-bottom: 1px solid var(--border);
@@ -515,7 +515,7 @@
 </head>
 <body>
 
-  <!-- ── NAV ─────────────────────────────────────────────── -->
+  <!--NAV-->
   <nav class="nav">
     <div class="nav-inner">
       <a href="/" class="nav-logo">
@@ -587,7 +587,7 @@
 
     <div class="booking-body">
 
-      <!-- ── STEP 1: Choose service ─────────────────────── -->
+      <!--STEP 1: Choose service-->
       <div class="step-panel active" id="step-1">
         <div class="booking-section">
           <div class="booking-section-title">Choose a Service</div>
@@ -611,7 +611,7 @@
         </div>
       </div>
 
-      <!-- ── STEP 2: Date & Time ─────────────────────────── -->
+      <!--STEP 2: Date & Time-->
       <div class="step-panel" id="step-2">
         <div class="booking-section">
           <div class="booking-section-title">Pick a Date</div>
@@ -646,7 +646,7 @@
         </div>
       </div>
 
-      <!-- ── STEP 3: Your details ─────────────────────────── -->
+      <!--STEP 3: Your details-->
       <div class="step-panel" id="step-3">
         <div class="logged-in-bar" id="logged-in-bar">
           <i data-lucide="user-check"></i>
@@ -697,7 +697,7 @@
         </div>
       </div>
 
-      <!-- ── STEP 4: Confirm ─────────────────────────────── -->
+      <!--STEP 4: Confirm-->
       <div class="step-panel" id="step-4">
         <div class="booking-section">
           <div class="booking-section-title">Review & Confirm</div>
@@ -746,7 +746,7 @@
         </div>
       </div>
 
-      <!-- ── STEP 5: Success ─────────────────────────────── -->
+      <!--STEP 5: Success-->
       <div class="step-panel" id="step-5">
         <div class="confirm-screen">
           <div class="confirm-icon"><i data-lucide="check-circle"></i></div>
@@ -795,7 +795,7 @@
       allSlots: [],
     }
 
-    // ── Nav auth state ────────────────────────────────────
+    //Nav auth state
     function initAuth() {
       const user = JSON.parse(sessionStorage.getItem('lc_user') || 'null')
       if (user) {
@@ -811,7 +811,7 @@
       }
     }
 
-    // ── Load services ─────────────────────────────────────
+    //Load services
     async function loadServices() {
       try {
         const res  = await fetch(`${API_BASE}/appointments/services`)
@@ -870,7 +870,7 @@
       document.getElementById('svc-alert').classList.remove('show')
     }
 
-    // ── Load slots ────────────────────────────────────────
+    //Load slots
     async function loadSlots() {
       try {
         const res  = await fetch(`${API_BASE}/appointments/slots?days=7`)
@@ -960,7 +960,7 @@
       document.getElementById('slot-alert').classList.remove('show')
     }
 
-    // ── Step navigation ───────────────────────────────────
+    //Step navigation
     function updateProgressLine(n) {
       const line = document.getElementById('steps-progress-line')
       if (!line) return
@@ -1073,7 +1073,7 @@
       }
     }
 
-    // ── Confirm booking ───────────────────────────────────
+    //Confirm booking
     async function confirmBooking() {
       const btn = document.getElementById('btn-confirm')
       btn.disabled = true
@@ -1151,7 +1151,7 @@
       el.classList.add('show')
     }
 
-    // ── Init ──────────────────────────────────────────────
+
     window.addEventListener('DOMContentLoaded', () => {
       initAuth()
       loadServices()
