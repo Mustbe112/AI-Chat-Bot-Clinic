@@ -1,8 +1,3 @@
-// ============================================================
-//  auth-nav.js  —  shared navbar auth state for all pages
-//  Auth: HttpOnly cookie (set by server) — no token in JS
-// ============================================================
-
 (function () {
 
   const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
@@ -16,7 +11,6 @@
   let warnTimer = null
   let warnToast = null
 
-  // We track login state in memory only — no localStorage token
   // applyAuthToNav() reads lc_user (non-sensitive display data only)
   function isLoggedIn() {
     return !!sessionStorage.getItem('lc_user')
@@ -98,8 +92,6 @@
 
   // ── Apply auth state to the navbar ───────────────────────
   function applyAuthToNav() {
-    // lc_user holds only display data (name, avatar) — not sensitive
-    // The real auth proof is the HttpOnly cookie, invisible to JS
     const user = JSON.parse(sessionStorage.getItem('lc_user') || 'null')
 
     const authBtn      = document.getElementById('nav-auth-btn')
@@ -158,8 +150,6 @@
   }
 
   // ── Verify session on page load via /auth/me ─────────────
-  // Since JS can't read the HttpOnly cookie, we ask the server
-  // if the cookie is still valid. If yes, we get user data back.
   function checkSession() {
     fetch(API_BASE + '/auth/me', {
       credentials: 'include'   // sends the cookie automatically
@@ -185,10 +175,15 @@
     })
   }
 
-  // ── Run on page load ──────────────────────────────────────
+  function applyCachedAuthInstantly() {
+    if (isLoggedIn()) applyAuthToNav()
+  }
+
   if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyCachedAuthInstantly)
     document.addEventListener('DOMContentLoaded', checkSession)
   } else {
+    applyCachedAuthInstantly()
     checkSession()
   }
 
@@ -204,9 +199,5 @@
   window.addEventListener('auth:logout', function () {
     applyAuthToNav()
   })
-
-  // NOTE: cross-tab sync via storage event is removed —
-  // sessionStorage is intentionally tab-scoped. Each tab
-  // independently verifies its session via /auth/me on load.
 
 }())

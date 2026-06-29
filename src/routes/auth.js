@@ -9,7 +9,6 @@ const SALT_ROUNDS     = 10
 const TOKEN_EXPIRES   = '1h'    // stay logged in for 1 hour
 const SESSION_TIMEOUT = 30 * 60 // 30 min of inactivity (seconds)
 
-// On localhost (plain HTTP) cookies marked Secure are silently dropped
 // by the browser, and SameSite=None requires Secure to be set at all —
 // so both flags must flip together based on environment.
 const IS_PROD = process.env.NODE_ENV === 'production'
@@ -23,7 +22,6 @@ const COOKIE_OPTIONS = {
 
 // In-memory rate limiter
 // Keyed by IP. Each entry: { count, resetAt }
-// For multi-instance deployments, replace with Redis-backed storage.
 const rateLimitStore = new Map()
 
 const RATE_LIMIT_RULES = {

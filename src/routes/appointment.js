@@ -49,9 +49,7 @@ function optionalAuth(req, res, next) {
   next()
 }
 
-// ============================================================
 //  GET /appointments/slots
-// ============================================================
 router.get('/slots', async (req, res) => {
   try {
     const days  = parseInt(req.query.days) || 7
@@ -63,9 +61,7 @@ router.get('/slots', async (req, res) => {
   }
 })
 
-// ============================================================
 //  GET /appointments/services
-// ============================================================
 router.get('/services', async (req, res) => {
   try {
     const { data: services, error } = await supabase
@@ -89,9 +85,7 @@ router.get('/services', async (req, res) => {
   }
 })
 
-// ============================================================
 //  GET /appointments/my  — requires auth
-// ============================================================
 router.get('/my', optionalAuth, async (req, res) => {
   try {
     const user = await resolveUser(req)
@@ -115,9 +109,7 @@ router.get('/my', optionalAuth, async (req, res) => {
   }
 })
 
-// ============================================================
 //  POST /appointments/book  — Way 2 (chatbot, requires login)
-// ============================================================
 router.post('/book', optionalAuth, async (req, res) => {
   try {
     const user = await resolveUser(req)
@@ -171,10 +163,8 @@ router.post('/book', optionalAuth, async (req, res) => {
   }
 })
 
-// ============================================================
 //  POST /appointments/book-guest  — Way 1 (Book Now button)
 //  No login required. Collects name, phone, email from form.
-// ============================================================
 router.post('/book-guest', async (req, res) => {
   try {
     const { guestName, guestPhone, guestEmail, serviceId, notes } = req.body
@@ -264,9 +254,7 @@ router.post('/book-guest', async (req, res) => {
   }
 })
 
-// ============================================================
 //  PATCH /appointments/cancel  — requires auth
-// ============================================================
 router.patch('/cancel', optionalAuth, async (req, res) => {
   try {
     const user = await resolveUser(req)
@@ -305,9 +293,7 @@ router.patch('/cancel', optionalAuth, async (req, res) => {
   }
 })
 
-// ============================================================
 //  PATCH /appointments/reschedule  — requires auth
-// ============================================================
 router.patch('/reschedule', optionalAuth, async (req, res) => {
   try {
     const user = await resolveUser(req)

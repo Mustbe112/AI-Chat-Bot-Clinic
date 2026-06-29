@@ -11,14 +11,6 @@ const appointmentRoutes       = require('./routes/appointment')
 const app  = express()
 const PORT = process.env.PORT || 3000
 
-// ---------------------------------------------------------------------------
-// CORS
-// ---------------------------------------------------------------------------
-// credentials: true is required so the browser sends the HttpOnly cookie
-// on cross-origin requests (e.g. Vercel frontend → Render backend).
-// The origin function still allows localhost + your production domain +
-// any Vercel preview deployment.
-// ---------------------------------------------------------------------------
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'https://ai-chat-bot-clinic.vercel.app'
@@ -35,20 +27,15 @@ app.use(cors({
   credentials: true  // required for cookies to be sent cross-origin
 }))
 
-// ---------------------------------------------------------------------------
 // MIDDLEWARE
-// ---------------------------------------------------------------------------
 app.use(express.json())
 
 // cookie-parser must come before any route that reads req.cookies
-// Pass COOKIE_SECRET so cookies can be signed (optional but good practice)
 app.use(cookieParser(process.env.COOKIE_SECRET))
 
 app.use(express.static(path.join(__dirname, '../public'), { index: false }))
 
-// ---------------------------------------------------------------------------
 // ROUTES
-// ---------------------------------------------------------------------------
 app.use('/auth',         authRoutes)
 app.use('/chat',         chatRoutes)
 app.use('/appointments', appointmentRoutes)
@@ -66,9 +53,7 @@ app.get('/about',    (req, res) => res.sendFile(path.join(__dirname, '../public/
 app.get('/booking',  (req, res) => res.sendFile(path.join(__dirname, '../public/pages/booking.html')))
 app.get('/login',    (req, res) => res.sendFile(path.join(__dirname, '../public/pages/login.html')))
 
-// ---------------------------------------------------------------------------
 // START SERVER
-// ---------------------------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`Running on http://localhost:${PORT}`)
 })
