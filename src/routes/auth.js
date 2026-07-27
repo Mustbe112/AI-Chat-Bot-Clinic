@@ -2,8 +2,7 @@ const express  = require('express')
 const router   = express.Router()
 const bcrypt   = require('bcrypt')
 const jwt      = require('jsonwebtoken')
-const supabase = require('../services/supabase')
-const prisma = require('../services/prisma')
+const prisma   = require('../services/prisma')
 
 const JWT_SECRET      = process.env.JWT_SECRET
 const SALT_ROUNDS     = 10
@@ -66,7 +65,7 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000)
 
-// Middleware: verify JWT + session timeout 
+// Middleware: verify JWT + session timeout
 // How inactivity logout works:
 //   - Every token carries a `lastActive` timestamp (Unix seconds).
 //   - On each authenticated request we check how long ago that was.
@@ -108,7 +107,7 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// Validation helpers 
+// Validation helpers
 function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) }
 function isValidPhone(p) { return /^[0-9+\-\s]{7,15}$/.test(p) }
 
@@ -139,8 +138,8 @@ router.post('/register', rateLimit('register'), async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim()
 
     const existing = await prisma.users.findUnique({
-      where:{email:normalizedEmail},
-      select:{id:true}
+      where: { email: normalizedEmail },
+      select: { id: true }
     })
 
     if (existing) {
@@ -150,24 +149,25 @@ router.post('/register', rateLimit('register'), async (req, res) => {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
     const sessionId    = 'reg-' + Math.random().toString(36).slice(2, 9) + '-' + Date.now()
 
-    let user 
-    try{
+    let user
+    try {
       user = await prisma.users.create({
-        data:{
-          display_name: name.trim(),
-          email: normalizedEmail,
-          password_hash,
-          phone: phone.trim(),
-          id_number: idNumber.trim(),
-          session_id,
-          isRegistered : true,
-          picture_url: `https://api.dicebear.com/7.x/personas/svg?seed=${session_id}`
+        data: {
+          display_name:  name.trim(),
+          email:         normalizedEmail,
+          password_hash: passwordHash,
+          phone:         phone.trim(),
+          id_number:     idNumber.trim(),
+          session_id:    sessionId,
+          is_registered: true,
+          picture_url:   `https://api.dicebear.com/7.x/personas/svg?seed=${sessionId}`
         },
-        select :{id:true, displayName:true, email:true, phone:true, pictureUrl:true}
+        select: { id: true, display_name: true, email: true, phone: true, picture_url: true }
       })
-    }catch(err){
-      if(err.code === 'P2002'){
-        return res.status(409).json({success:false, message:'An account with this email already exists.'})
+    } catch (err) {
+      // race condition: unique constraint on email or session_id
+      if (err.code === 'P2002') {
+        return res.status(409).json({ success: false, message: 'An account with this email already exists.' })
       }
       throw err
     }
@@ -208,12 +208,16 @@ router.post('/login', rateLimit('login'), async (req, res) => {
     }
 
     const user = await prisma.users.findUnique({
-      where:{email: email.toLowerCase().trim()},
-      select:{
-        id:true, display_name:true,email:true, phone:true, picture_url:true, password_hash:true, is_Registered:true}
+      where: { email: email.toLowerCase().trim() },
+      select: {
+        id: true, display_name: true, email: true, phone: true,
+        picture_url: true, password_hash: true, is_registered: true
+      }
     })
 
-    if (!user || !user.is_registered) {
+    // password_hash may be null (e.g. LINE-login-only accounts) — bcrypt.compare
+    // against null would throw, so guard explicitly
+    if (!user || !user.is_registered || !user.password_hash) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' })
     }
 
@@ -260,8 +264,11 @@ router.post('/logout', (req, res) => {
 router.get('/me', rateLimit('me'), authMiddleware, async (req, res) => {
   try {
     const user = await prisma.users.findUnique({
-      where:{id: req.userId},
-      select:{id:true, display_name:true, email:true, phone:true, picture_url:true, is_registered:true}
+      where: { id: req.userId },
+      select: {
+        id: true, display_name: true, email: true, phone: true,
+        picture_url: true, is_registered: true
+      }
     })
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' })
@@ -269,11 +276,11 @@ router.get('/me', rateLimit('me'), authMiddleware, async (req, res) => {
     res.json({
       success: true,
       user: {
-        id:          user.id,
-        displayName: user.display_name,
-        email:       user.email,
-        phone:       user.phone,
-        pictureUrl:  user.picture_url,
+        id:           user.id,
+        displayName:  user.display_name,
+        email:        user.email,
+        phone:        user.phone,
+        pictureUrl:   user.picture_url,
         isRegistered: user.is_registered
       }
     })
