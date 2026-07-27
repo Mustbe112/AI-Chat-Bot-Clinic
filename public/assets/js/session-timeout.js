@@ -8,8 +8,6 @@
 
   const LOGIN_URL = '/pages/login.html'
 
-  // No token in localStorage — check cookie validity via /auth/me
-  // If server returns 401, cookie is gone/expired → don't run timers
   let sessionActive = false
 
   fetch(API_BASE + '/auth/me', { credentials: 'include' })

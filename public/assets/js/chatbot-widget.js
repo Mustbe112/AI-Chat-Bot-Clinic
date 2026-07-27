@@ -1,4 +1,3 @@
-//  LUMIÈRE CLINIC — chatbot-widget.js  (v4 — cookie auth)
 //  Auth-aware floating chat widget.
 //
 //  Way 1 — "Book Now" button on service cards:

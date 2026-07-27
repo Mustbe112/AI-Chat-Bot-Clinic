@@ -3,6 +3,8 @@ const router     = express.Router()
 const jwt        = require('jsonwebtoken')
 const { chat }   = require('../services/gemini')
 const supabase   = require('../services/supabase')
+const prisma = require('../services/prisma')
+const e = require('express')
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production'
 
@@ -15,11 +17,9 @@ async function resolveUser(req, displayName = 'Guest') {
     try {
       const payload = jwt.verify(header.slice(7), JWT_SECRET)
 
-      const { data: user } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', payload.userId)
-        .single()
+      const user = await prisma.users.findUnique({
+        where:{id: payload.userId}
+      })
 
       if (user) return { user, isLoggedIn: true }
     } catch { /* fall through to sessionId */ }
@@ -29,28 +29,27 @@ async function resolveUser(req, displayName = 'Guest') {
   const { sessionId } = req.body
   if (!sessionId) return { user: null, isLoggedIn: false }
 
-  const { data: existing } = await supabase
-    .from('users')
-    .select('*')
-    .eq('session_id', sessionId)
-    .single()
+  const existing = await prisma.users.findUnique({
+    where:{session_id: sessionId}
+  })
 
   if (existing) return { user: existing, isLoggedIn: existing.is_registered || false }
 
   // Create new guest session user
-  const { data: newUser, error } = await supabase
-    .from('users')
-    .insert({
-      display_name:  displayName,
-      session_id:    sessionId,
-      is_registered: false,
-      picture_url:   `https://api.dicebear.com/7.x/personas/svg?seed=${sessionId}`
+  try{
+    const newUser = await prisma.users.create({
+      data:{
+        display_name:displayName,
+        session_id:sessionId,
+        is_registered:false,
+        picture_url:`https://api.dicebear.com/7.x/personas/svg?seed=${sessionId}`
+      }
     })
-    .select()
-    .single()
-
-  if (error) { console.error('Error creating guest user:', error); return { user: null, isLoggedIn: false } }
-  return { user: newUser, isLoggedIn: false }
+    return {user: newUser, isLoggedIn:false}
+  }catch(error){
+    console.error('Error creating guest user : ',error)
+    return {user:null, isLoggedIn:false}
+  }
 }
 
 //  POST /chat
@@ -102,9 +101,11 @@ async function resolveUserId(req) {
   }
   const sessionId = req.query.sessionId || req.body?.sessionId
   if (sessionId) {
-    const { data: user } = await supabase
-      .from('users').select('id').eq('session_id', sessionId).single()
-    return user?.id || null
+   const user = await prisma.users.findUnique({
+    where:{session_id:sessionId},
+    select:{id:true}
+   })
+   return user?.id || null
   }
   return null
 }
@@ -115,12 +116,12 @@ router.get('/history', async (req, res) => {
 
     if (!userId) return res.json({ success: true, history: [] })
 
-    const { data: history } = await supabase
-      .from('chat_history')
-      .select('role, content, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true })
-      .limit(50)
+    const history = await prisma.chat_history.findMany({
+      where:{user_id :userId},
+      select:{role:true, content:true, created_at:true},
+      orderBy:{created_at:'asc'},
+      take:50
+    })
 
     return res.json({ success: true, history: history || [] })
   } catch (error) {

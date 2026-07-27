@@ -1,7 +1,7 @@
 const express  = require('express')
 const router   = express.Router()
 const jwt      = require('jsonwebtoken')
-const supabase = require('../services/supabase')
+const prisma   = require('../services/prisma')
 const { getAvailableSlots, isSlotAvailable } = require('../services/scheduler')
 const { authMiddleware } = require('./auth')
 
@@ -17,22 +17,18 @@ function thaiLocalToUTC(isoStr) {
 async function resolveUser(req) {
   // JWT path (logged-in user, Way 2 chatbot or any future auth'd request)
   if (req.userId) {
-    const { data } = await supabase
-      .from('users')
-      .select('id, display_name, email, phone')
-      .eq('id', req.userId)
-      .single()
-    return data || null
+    return await prisma.users.findUnique({
+      where: { id: req.userId },
+      select: { id: true, display_name: true, email: true, phone: true }
+    })
   }
   // Session-id path (legacy / guest chatbot browsing)
   const sessionId = req.query.sessionId || req.body?.sessionId
   if (!sessionId) return null
-  const { data } = await supabase
-    .from('users')
-    .select('id, display_name, email, phone')
-    .eq('session_id', sessionId)
-    .single()
-  return data || null
+  return await prisma.users.findUnique({
+    where: { session_id: sessionId },
+    select: { id: true, display_name: true, email: true, phone: true }
+  })
 }
 
 // Optional auth middleware — sets req.userId if valid Bearer token present,
@@ -64,13 +60,10 @@ router.get('/slots', async (req, res) => {
 //  GET /appointments/services
 router.get('/services', async (req, res) => {
   try {
-    const { data: services, error } = await supabase
-      .from('services')
-      .select('*')
-      .eq('is_active', true)
-      .order('category', { ascending: true })
-
-    if (error) throw error
+    const services = await prisma.services.findMany({
+      where: { is_active: true },
+      orderBy: { category: 'asc' }
+    })
 
     const grouped = services.reduce((acc, svc) => {
       if (!acc[svc.category]) acc[svc.category] = []
@@ -91,17 +84,16 @@ router.get('/my', optionalAuth, async (req, res) => {
     const user = await resolveUser(req)
     if (!user) return res.json({ success: true, appointments: [] })
 
-    const { data: appointments, error } = await supabase
-      .from('appointments')
-      .select(`
-        id, booking_ref, slot_datetime, status, notes,
-        guest_name, guest_phone, guest_email, created_at,
-        services ( name, category, price, duration_min )
-      `)
-      .eq('user_id', user.id)
-      .order('slot_datetime', { ascending: true })
+    const appointments = await prisma.appointments.findMany({
+      where: { user_id: user.id },
+      select: {
+        id: true, booking_ref: true, slot_datetime: true, status: true, notes: true,
+        guest_name: true, guest_phone: true, guest_email: true, created_at: true,
+        services: { select: { name: true, category: true, price: true, duration_min: true } }
+      },
+      orderBy: { slot_datetime: 'asc' }
+    })
 
-    if (error) throw error
     res.json({ success: true, appointments: appointments || [] })
   } catch (error) {
     console.error('My appointments error:', error)
@@ -132,26 +124,25 @@ router.post('/book', optionalAuth, async (req, res) => {
       return res.status(409).json({ success: false, message: 'This slot is fully booked. Please choose another time.' })
     }
 
-    const { data: service } = await supabase
-      .from('services')
-      .select('id, name, price')
-      .eq('id', serviceId)
-      .eq('is_active', true)
-      .single()
+    const service = await prisma.services.findFirst({
+      where: { id: serviceId, is_active: true },
+      select: { id: true, name: true, price: true }
+    })
 
     if (!service) return res.status(404).json({ success: false, message: 'Service not found.' })
 
     const bookingRef = await generateRef()
 
-    const { error } = await supabase.from('appointments').insert({
-      user_id:       user.id,
-      service_id:    serviceId,
-      slot_datetime: slotDatetime,
-      booking_ref:   bookingRef,
-      notes:         notes || null,
-      status:        'confirmed'
+    await prisma.appointments.create({
+      data: {
+        user_id:       user.id,
+        service_id:    serviceId,
+        slot_datetime: slotDatetime,
+        booking_ref:   bookingRef,
+        notes:         notes || null,
+        status:        'confirmed'
+      }
     })
-    if (error) throw error
 
     res.json({
       success: true,
@@ -182,60 +173,58 @@ router.post('/book-guest', async (req, res) => {
       return res.status(409).json({ success: false, message: 'This slot is fully booked. Please choose another time.' })
     }
 
-    const { data: service } = await supabase
-      .from('services')
-      .select('id, name, price')
-      .eq('id', serviceId)
-      .eq('is_active', true)
-      .single()
+    const service = await prisma.services.findFirst({
+      where: { id: serviceId, is_active: true },
+      select: { id: true, name: true, price: true }
+    })
 
     if (!service) return res.status(404).json({ success: false, message: 'Service not found.' })
 
-    // Upsert a guest user row (keyed by phone) so we can track appointments
+    // Upsert a guest user row (keyed by email) so we can track appointments
     // without requiring full registration.
     let guestUser = null
     if (guestEmail) {
-      const { data } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', guestEmail.toLowerCase().trim())
-        .single()
-      guestUser = data
+      guestUser = await prisma.users.findUnique({
+        where: { email: guestEmail.toLowerCase().trim() },
+        select: { id: true }
+      })
     }
 
     if (!guestUser) {
       // Create a minimal guest user row
       const sessionId = 'guest-' + Math.random().toString(36).slice(2, 9) + '-' + Date.now()
-      const { data, error: uErr } = await supabase
-        .from('users')
-        .insert({
-          display_name:  guestName.trim(),
-          email:         guestEmail ? guestEmail.toLowerCase().trim() : null,
-          phone:         guestPhone.trim(),
-          session_id:    sessionId,
-          is_registered: false,
-          picture_url:   `https://api.dicebear.com/7.x/personas/svg?seed=${sessionId}`
+      try {
+        guestUser = await prisma.users.create({
+          data: {
+            display_name:  guestName.trim(),
+            email:         guestEmail ? guestEmail.toLowerCase().trim() : null,
+            phone:         guestPhone.trim(),
+            session_id:    sessionId,
+            is_registered: false,
+            picture_url:   `https://api.dicebear.com/7.x/personas/svg?seed=${sessionId}`
+          },
+          select: { id: true }
         })
-        .select('id')
-        .single()
-      if (uErr) throw uErr
-      guestUser = data
+      } catch (uErr) {
+        throw uErr
+      }
     }
 
     const bookingRef = await generateRef()
 
-    const { error } = await supabase.from('appointments').insert({
-      user_id:       guestUser.id,
-      service_id:    serviceId,
-      slot_datetime: slotDatetime,
-      booking_ref:   bookingRef,
-      notes:         notes || null,
-      status:        'confirmed',
-      guest_name:    guestName.trim(),
-      guest_phone:   guestPhone.trim(),
-      guest_email:   guestEmail ? guestEmail.toLowerCase().trim() : null
+    await prisma.appointments.create({
+      data: {
+        user_id:       guestUser.id,
+        service_id:    serviceId,
+        slot_datetime: slotDatetime,
+        booking_ref:   bookingRef,
+        notes:         notes || null,
+        status:        'confirmed',
+        guest_name:    guestName.trim(),
+        guest_phone:   guestPhone.trim(),
+        guest_email:   guestEmail ? guestEmail.toLowerCase().trim() : null
+      }
     })
-    if (error) throw error
 
     res.json({
       success: true,
@@ -267,12 +256,10 @@ router.patch('/cancel', optionalAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'bookingRef is required.' })
     }
 
-    const { data: appointment } = await supabase
-      .from('appointments')
-      .select('id, status')
-      .eq('booking_ref', bookingRef)
-      .eq('user_id', user.id)
-      .single()
+    const appointment = await prisma.appointments.findFirst({
+      where: { booking_ref: bookingRef, user_id: user.id },
+      select: { id: true, status: true }
+    })
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: `Booking ${bookingRef} not found on your account.` })
@@ -281,10 +268,10 @@ router.patch('/cancel', optionalAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'This appointment is already cancelled.' })
     }
 
-    await supabase
-      .from('appointments')
-      .update({ status: 'cancelled' })
-      .eq('id', appointment.id)
+    await prisma.appointments.update({
+      where: { id: appointment.id },
+      data: { status: 'cancelled' }
+    })
 
     res.json({ success: true, message: `Appointment ${bookingRef} cancelled successfully.` })
   } catch (error) {
@@ -313,12 +300,10 @@ router.patch('/reschedule', optionalAuth, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Provide at least newSlotDatetime or newServiceId.' })
     }
 
-    const { data: appointment } = await supabase
-      .from('appointments')
-      .select('id, status, slot_datetime, service_id')
-      .eq('booking_ref', bookingRef)
-      .eq('user_id', user.id)
-      .single()
+    const appointment = await prisma.appointments.findFirst({
+      where: { booking_ref: bookingRef, user_id: user.id },
+      select: { id: true, status: true, slot_datetime: true, service_id: true }
+    })
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: `Booking ${bookingRef} not found on your account.` })
@@ -328,7 +313,7 @@ router.patch('/reschedule', optionalAuth, async (req, res) => {
     }
 
     const targetSlot = newSlotDatetime || appointment.slot_datetime
-    if (newSlotDatetime && newSlotDatetime !== appointment.slot_datetime) {
+    if (newSlotDatetime && newSlotDatetime !== appointment.slot_datetime.toISOString()) {
       const available = await isSlotAvailable(newSlotDatetime)
       if (!available) {
         return res.status(409).json({ success: false, message: 'That slot is fully booked. Please choose another time.' })
@@ -337,20 +322,22 @@ router.patch('/reschedule', optionalAuth, async (req, res) => {
 
     const targetServiceId = newServiceId || appointment.service_id
     if (newServiceId) {
-      const { data: svc } = await supabase
-        .from('services').select('id').eq('id', newServiceId).eq('is_active', true).single()
+      const svc = await prisma.services.findFirst({
+        where: { id: newServiceId, is_active: true },
+        select: { id: true }
+      })
       if (!svc) return res.status(404).json({ success: false, message: 'Service not found.' })
     }
 
-    const { error } = await supabase
-      .from('appointments')
-      .update({ slot_datetime: targetSlot, service_id: targetServiceId })
-      .eq('id', appointment.id)
+    await prisma.appointments.update({
+      where: { id: appointment.id },
+      data: { slot_datetime: targetSlot, service_id: targetServiceId }
+    })
 
-    if (error) throw error
-
-    const { data: updatedService } = await supabase
-      .from('services').select('name, price').eq('id', targetServiceId).single()
+    const updatedService = await prisma.services.findUnique({
+      where: { id: targetServiceId },
+      select: { name: true, price: true }
+    })
 
     res.json({
       success: true,
@@ -371,9 +358,7 @@ router.patch('/reschedule', optionalAuth, async (req, res) => {
 // ── Booking reference generator ───────────────────────────
 async function generateRef() {
   const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
-  const { count } = await supabase
-    .from('appointments')
-    .select('*', { count: 'exact', head: true })
+  const count = await prisma.appointments.count()
   return `TCB-${today}-${String((count || 0) + 1).padStart(3, '0')}`
 }
 

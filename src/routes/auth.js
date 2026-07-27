@@ -3,6 +3,7 @@ const router   = express.Router()
 const bcrypt   = require('bcrypt')
 const jwt      = require('jsonwebtoken')
 const supabase = require('../services/supabase')
+const prisma = require('../services/prisma')
 
 const JWT_SECRET      = process.env.JWT_SECRET
 const SALT_ROUNDS     = 10
@@ -135,11 +136,12 @@ router.post('/register', rateLimit('register'), async (req, res) => {
     }
 
     // Check duplicate email
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', email.toLowerCase().trim())
-      .single()
+    const normalizedEmail = email.toLowerCase().trim()
+
+    const existing = await prisma.users.findUnique({
+      where:{email:normalizedEmail},
+      select:{id:true}
+    })
 
     if (existing) {
       return res.status(409).json({ success: false, message: 'An account with this email already exists.' })
@@ -148,22 +150,27 @@ router.post('/register', rateLimit('register'), async (req, res) => {
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
     const sessionId    = 'reg-' + Math.random().toString(36).slice(2, 9) + '-' + Date.now()
 
-    const { data: user, error } = await supabase
-      .from('users')
-      .insert({
-        display_name:  name.trim(),
-        email:         email.toLowerCase().trim(),
-        password_hash: passwordHash,
-        phone:         phone.trim(),
-        id_number:     idNumber.trim(),
-        session_id:    sessionId,
-        is_registered: true,
-        picture_url:   `https://api.dicebear.com/7.x/personas/svg?seed=${sessionId}`
+    let user 
+    try{
+      user = await prisma.users.create({
+        data:{
+          display_name: name.trim(),
+          email: normalizedEmail,
+          password_hash,
+          phone: phone.trim(),
+          id_number: idNumber.trim(),
+          session_id,
+          isRegistered : true,
+          picture_url: `https://api.dicebear.com/7.x/personas/svg?seed=${session_id}`
+        },
+        select :{id:true, displayName:true, email:true, phone:true, pictureUrl:true}
       })
-      .select('id, display_name, email, phone, picture_url')
-      .single()
-
-    if (error) throw error
+    }catch(err){
+      if(err.code === 'P2002'){
+        return res.status(409).json({success:false, message:'An account with this email already exists.'})
+      }
+      throw err
+    }
 
     const token = jwt.sign(
       { userId: user.id, lastActive: Math.floor(Date.now() / 1000) },
@@ -200,11 +207,11 @@ router.post('/login', rateLimit('login'), async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required.' })
     }
 
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, display_name, email, phone, picture_url, password_hash, is_registered')
-      .eq('email', email.toLowerCase().trim())
-      .single()
+    const user = await prisma.users.findUnique({
+      where:{email: email.toLowerCase().trim()},
+      select:{
+        id:true, display_name:true,email:true, phone:true, picture_url:true, password_hash:true, isRegistered:true}
+    })
 
     if (!user || !user.is_registered) {
       return res.status(401).json({ success: false, message: 'Invalid email or password.' })
@@ -252,11 +259,10 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', rateLimit('me'), authMiddleware, async (req, res) => {
   try {
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, display_name, email, phone, picture_url, is_registered')
-      .eq('id', req.userId)
-      .single()
+    const user = await prisma.users.findUnique({
+      where:{id: req.userId},
+      select:{id:true, display_name:true, email:true, phone:true, picture_url:true, is_registered:true}
+    })
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found.' })
 
