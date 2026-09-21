@@ -1,4 +1,58 @@
-# Lumière Skin Clinic — AI Chatbot Technical Documentation
+# Lumière Skin Clinic — AI Chatbot
+
+A web app for **Lumière Skin Clinic** that lets patients browse treatments, chat with an AI assistant, and book appointments — as a guest or a registered user.
+
+The chatbot (Google Gemini) answers clinic questions, shows services and prices, and can check slots or book/cancel/reschedule for logged-in users. Guests are directed to a simple booking form. Auth uses JWT, appointments live in Supabase (PostgreSQL), and the site is static HTML/JS on Vercel with a Node.js Express API on Render.
+
+**Live:** [https://ai-chat-bot-clinic.vercel.app](https://ai-chat-bot-clinic.vercel.app)
+
+---
+
+## Features
+
+- AI chat for services, prices, hours, and booking help
+- Guest booking (name, phone, email) and logged-in chat booking
+- Account register / login with session timeout
+- Fixed daily slots (UTC+7), 2 bookings per slot, Sundays closed
+- Chat history, daily message cap, and keyword filtering
+
+---
+
+## Tech stack
+
+| Layer | Stack |
+|---|---|
+| Frontend | Static HTML, CSS, vanilla JS |
+| Backend | Node.js, Express |
+| Database | Supabase (PostgreSQL) |
+| AI | Google Gemini 2.5 Flash (function calling) |
+| Auth | JWT + bcrypt |
+
+---
+
+## Local setup
+
+Create a `.env` file with:
+
+```
+GEMINI_API_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+JWT_SECRET=
+COOKIE_SECRET=
+PORT=3000
+```
+
+Then:
+
+```bash
+npm install
+npm run dev            # http://localhost:3000
+```
+
+---
+
+## Technical documentation
 
 ---
 
