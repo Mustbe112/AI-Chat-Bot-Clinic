@@ -117,6 +117,18 @@
       padding: 4px 10px; border-radius: 20px; white-space: nowrap;
       position: relative; z-index: 1;
     }
+    .stage-bar {
+      flex-shrink: 0;
+      padding: 6px 18px;
+      background: var(--sand);
+      border-bottom: 1px solid var(--border-w);
+      font-size: 10.5px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted-w);
+    }
+    .stage-bar span { color: var(--rose); font-weight: 600; }
 
     /*Guest notice*/
     #guestNotice {
@@ -633,6 +645,7 @@
           <div id="serverStatusPill" style="font-size:9.5px;font-weight:500;padding:4px 10px;border-radius:20px;white-space:nowrap;background:rgba(201,168,76,0.18);color:rgba(201,168,76,0.9);border:1px solid rgba(201,168,76,0.3);">⏳ Warming up…</div>
           <div class="msg-counter-pill" id="msgCounter">20 left</div>
         </div>
+        <div class="stage-bar">Stage: <span id="stageLabel">visitor</span></div>
 
         <!-- Guest notice -->
         <div id="guestNotice">
@@ -674,7 +687,7 @@ I'm your AI skin consultant. I can help you with:
           <button class="qbtn" onclick="showAllServices()"><i data-lucide="leaf"></i> Services</button>
           <button class="qbtn" onclick="showSlots()"><i data-lucide="calendar"></i> Slots</button>
           <button class="qbtn" id="qbtnMyBookings" onclick="showMyAppointments()" style="display:none"><i data-lucide="clipboard-list"></i> My Bookings</button>
-          <button class="qbtn" onclick="sendQuick('What do you recommend for acne?')"><i data-lucide="sparkles"></i> Recommend</button>
+          <button class="qbtn" onclick="showRecommendations()"><i data-lucide="sparkles"></i> Recommend</button>
           <button class="qbtn" id="qbtnReschedule" onclick="sendQuick('I want to reschedule my appointment')" style="display:none"><i data-lucide="refresh-cw"></i> Reschedule</button>
         </div>
 
@@ -810,9 +823,11 @@ I'm your AI skin consultant. I can help you with:
   <div class="toast" id="toast"></div>
 
   <script src="../assets/js/script.js"></script>
+  <script src="../assets/js/api-base.js"></script>
+  <script src="../assets/js/activity.js"></script>
   <script>
   //  API CONFIGURATION
-  const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+  const API_BASE = window.CLINIC_API_BASE || 'https://ai-chat-bot-clinic.onrender.com'
 
   // ── Wake up Render on page load (free tier spins down) ──────
   let serverReady = false
@@ -838,6 +853,7 @@ I'm your AI skin consultant. I can help you with:
   //  AUTH STATE  (cookie-based — same as auth-nav.js site-wide)
   let authUser   = null
   let isLoggedIn = false
+  let lastBookingRef = null
 
   // Instantly restore display info from cache (non-sensitive only)
   const _cachedUser = sessionStorage.getItem('lc_user')
@@ -851,13 +867,28 @@ I'm your AI skin consultant. I can help you with:
     localStorage.setItem('clinicSessionId', sessionId)
   }
 
+  function setStageLabel(stage) {
+    const el = document.getElementById('stageLabel')
+    if (el && stage) el.textContent = stage
+  }
+  async function refreshStage() {
+    try {
+      const r = await fetch(`${API_BASE}/activity/stage?sessionId=${encodeURIComponent(sessionId)}`, {
+        credentials: 'include'
+      })
+      const d = await r.json()
+      if (d.success && d.stage) setStageLabel(d.stage)
+    } catch {}
+  }
+  refreshStage()
+
   // Always verify against the server — the HttpOnly cookie is the
   // real source of truth, the cached user above is just for instant UI.
   verifyToken()
 
   async function verifyToken() {
     try {
-      const r = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' })
+      const r = await fetch(`${API_BASE}/auth/me?sessionId=${encodeURIComponent(sessionId)}`, { credentials: 'include' })
       const d = await r.json()
       if (d.success) {
         authUser = d.user; isLoggedIn = true
@@ -871,6 +902,7 @@ I'm your AI skin consultant. I can help you with:
     } catch {
       // Network error — keep whatever cached state we have
     }
+    refreshStage()
   }
 
   function updateAuthUI() {
@@ -938,7 +970,7 @@ How can I help you today?`
         method: 'POST',
         credentials: 'include', // required so the browser stores the HttpOnly auth cookie
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, sessionId })
       })
       const d = await r.json()
       if (d.success) {
@@ -967,7 +999,7 @@ How can I help you today?`
         method: 'POST',
         credentials: 'include', // required so the browser stores the HttpOnly auth cookie
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, idNumber, password })
+        body: JSON.stringify({ name, email, phone, idNumber, password, sessionId })
       })
       const d = await r.json()
       if (d.success) {
@@ -1025,11 +1057,11 @@ How can I help you today?`
 
     try {
       const r = await fetch(`${API_BASE}/appointments/book-guest`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           guestName: guestNameVal, guestPhone: guestPhoneVal,
           guestEmail: guestEmailVal || null, notes: notesVal || null,
-          serviceId: guestBookServiceId, slotDatetime: guestBookSlot
+          serviceId: guestBookServiceId, slotDatetime: guestBookSlot, sessionId
         })
       })
       const d = await r.json()
@@ -1061,7 +1093,7 @@ How can I help you today?`
   let pendingServicePrice = null
   let pendingSlot         = null
   let activeSlotWidget    = null
-  let geminiMode          = false
+  let aiMode          = false
   let rescheduleInProgress = false
 
   document.getElementById('welcomeTime').textContent = fmtTime(new Date())
@@ -1171,7 +1203,7 @@ How can I help you today?`
   async function showAllServices(filterCat = null) {
     if (allServices.length === 0) {
       try {
-        const r = await fetch(`${API_BASE}/appointments/services`)
+        const r = await fetch(`${API_BASE}/appointments/services?sessionId=${encodeURIComponent(sessionId)}`)
         const d = await r.json()
         if (d.success) allServices = d.services
       } catch { addBubble('Could not load services. Please try again.', 'bot'); return }
@@ -1189,18 +1221,50 @@ How can I help you today?`
         <div class="svc-name">${s.name}</div>
         <div class="svc-price">${fmtPrice(s.price)}</div>
         <div class="svc-desc">${s.description || ''}</div>
-        <button class="svc-book-btn" onclick="startBooking(${s.id},'${s.name.replace(/'/g,"\\'")}',${s.price})">Book this service →</button>
+        <button class="svc-book-btn" onclick="goToManualBooking({ serviceId: ${s.id} })">Book this service →</button>
       </div>`).join('')
 
     addWidget(`${tabsHtml}<div class="services-list">${cardsHtml}</div>`,
       filterCat ? `${filterCat} Services` : 'Our Services & Prices')
   }
 
-  // startBooking: logged-in → slot picker; guest → slot picker → guest form
-  function startBooking(svcId, svcName, svcPrice) {
-    pendingServiceId = svcId; pendingServiceName = svcName; pendingServicePrice = svcPrice
-    addBubble(`Great choice! Let's book **${svcName}** for ${fmtPrice(svcPrice)} 😊\nPick a date below.`, 'bot')
-    askForDate()
+  async function showRecommendations() {
+    try {
+      const r = await fetch(`${API_BASE}/activity/stage?sessionId=${encodeURIComponent(sessionId)}`, {
+        credentials: 'include'
+      })
+      const d = await r.json()
+      const recs = d.recommended || []
+      if (d.stage) setStageLabel(d.stage)
+      if (!recs.length) {
+        addBubble("Here are our treatments. Tap **Book this service** when one feels right.", 'bot')
+        showAllServices()
+        return
+      }
+      addBubble("Based on what you've been looking at and booking, these are the best next treatments for you:", 'bot')
+      const cardsHtml = recs.map(s => `
+        <div class="svc-card">
+          <div class="svc-name">${s.name}</div>
+          <div class="svc-price">${fmtPrice(s.price)}</div>
+          <div class="svc-desc">${s.reason || s.description || ''}</div>
+          <button class="svc-book-btn" onclick="goToManualBooking({ serviceId: ${s.id} })">Book this service →</button>
+        </div>`).join('')
+      addWidget(`<div class="services-list">${cardsHtml}</div>`, 'Recommended for you')
+    } catch {
+      showAllServices()
+    }
+  }
+
+  function goToManualBooking(opts) {
+    const q = new URLSearchParams()
+    if (opts && opts.serviceId) q.set('serviceId', opts.serviceId)
+    if (opts && opts.slot) q.set('slot', opts.slot)
+    const qs = q.toString()
+    window.location.href = '/booking' + (qs ? '?' + qs : '')
+  }
+
+  function startBooking(svcId) {
+    goToManualBooking({ serviceId: svcId })
   }
 
   //Slot picker
@@ -1239,12 +1303,12 @@ How can I help you today?`
     if (!input) return
     const date = input.value
     if (!date) { showToast('Please pick a date first!'); return }
-    geminiMode = false
+    aiMode = false
     document.querySelectorAll('.date-picker-widget').forEach(el => el.closest('.widget-row')?.remove())
 
     const loader = addWidget('<div style="text-align:center;padding:16px;font-size:12px;color:var(--muted-w)">Loading slots…</div>')
     try {
-      const r = await fetch(`${API_BASE}/appointments/slots?days=30`)
+      const r = await fetch(`${API_BASE}/appointments/slots?days=30&sessionId=${encodeURIComponent(sessionId)}`)
       const d = await r.json()
       loader.remove()
       if (!d.success) { addBubble('Could not load slots. Please try again.', 'bot'); return }
@@ -1309,8 +1373,8 @@ How can I help you today?`
   async function confirmBooking() {
     if (!pendingSlot) { showToast('Select a time slot first!'); return }
 
-    // Gemini-guided path (logged in, AI chose the service)
-    if (geminiMode && isLoggedIn) {
+    // AI-guided path (logged in, assistant chose the service)
+    if (aiMode && isLoggedIn) {
       const slotLabel = document.getElementById('selectedSlotText')?.textContent || pendingSlot
       if (activeSlotWidget) { activeSlotWidget.remove(); activeSlotWidget = null }
       const thaiSlot = new Date(new Date(pendingSlot).getTime() + 7*60*60*1000)
@@ -1328,8 +1392,9 @@ How can I help you today?`
         setTyping(false)
         addBubble(d.message || 'Something went wrong.', 'bot')
         if (typeof d.remaining === 'number') { remaining = d.remaining; $counter.textContent = `${d.remaining} left` }
+        if (d.stage) setStageLabel(d.stage)
       } catch { setTyping(false); addBubble('Could not connect to server.', 'bot') }
-      isLoading = false; pendingSlot = null; geminiMode = false
+      isLoading = false; pendingSlot = null; aiMode = false
       return
     }
 
@@ -1342,7 +1407,7 @@ How can I help you today?`
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ serviceId: pendingServiceId, slotDatetime: pendingSlot })
+          body: JSON.stringify({ serviceId: pendingServiceId, slotDatetime: pendingSlot, sessionId })
         })
         const d = await r.json()
         if (d.success) {
@@ -1368,23 +1433,57 @@ How can I help you today?`
     openGuestBookModal(pendingServiceId, pendingServiceName, slotLabel)
   }
 
+  async function cancelBooking(bookingRef) {
+    if (!isLoggedIn) {
+      addBubble('Please log in to cancel a booking.', 'bot')
+      openAuthModal()
+      return
+    }
+    if (!bookingRef) {
+      addBubble('Please enter your booking reference (e.g. TCB-20260605-001).', 'bot')
+      return
+    }
+    lastBookingRef = bookingRef
+    try {
+      const r = await fetch(`${API_BASE}/appointments/cancel`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingRef, sessionId })
+      })
+      const d = await r.json()
+      if (d.success) {
+        addBubble(`Done — **${bookingRef}** is cancelled. 😊`, 'bot')
+        lastBookingRef = null
+      } else {
+        addBubble(d.message || 'Could not cancel that booking.', 'bot')
+      }
+    } catch {
+      addBubble('Could not reach the server to cancel. Please try again.', 'bot')
+    }
+  }
+
   //My appointments (logged-in only)
   async function showMyAppointments() {
     if (!isLoggedIn) { openAuthModal(); return }
     const loader = addWidget('<div style="text-align:center;padding:16px;font-size:12px;color:var(--muted-w)">Loading your appointments…</div>')
     try {
-      const r = await fetch(`${API_BASE}/appointments/my`, { credentials: 'include' })
+      await fetch(`${API_BASE}/auth/me?sessionId=${encodeURIComponent(sessionId)}`, { credentials: 'include' })
+      const r = await fetch(`${API_BASE}/appointments/my?sessionId=${encodeURIComponent(sessionId)}`, { credentials: 'include' })
       const d = await r.json()
       loader.remove()
       const confirmed = (d.appointments || []).filter(a => a.status === 'confirmed')
       if (!confirmed.length) { addBubble("You don't have any upcoming appointments. Would you like to book one? 😊", 'bot'); return }
+      lastBookingRef = confirmed[0].booking_ref
       const html = confirmed.map(a => `
         <div class="appt-item">
           <div class="appt-top"><div class="appt-service">${a.services?.name}</div><div class="appt-ref-badge">${a.booking_ref}</div></div>
           <div class="appt-time">${fmtDatetime(a.slot_datetime)}</div>
           <div class="appt-price">฿ ${fmtPrice(a.services?.price)}</div>
+          <button type="button" class="qbtn" style="margin-top:8px" onclick="cancelBooking('${a.booking_ref}')">Cancel</button>
         </div>`).join('')
       addWidget(`<div class="appts-list">${html}</div>`, `Your Appointments (${confirmed.length})`)
+      refreshStage()
     } catch { loader.remove(); addBubble('Could not load appointments. Please try again.', 'bot') }
   }
 
@@ -1392,11 +1491,12 @@ How can I help you today?`
   async function showBookingReceipt(bookingRef) {
     if (!isLoggedIn) return
     try {
-      const r = await fetch(`${API_BASE}/appointments/my`, { credentials: 'include' })
+      const r = await fetch(`${API_BASE}/appointments/my?sessionId=${encodeURIComponent(sessionId)}`, { credentials: 'include' })
       const d = await r.json()
       if (!d.success) return
       const appt = (d.appointments || []).find(a => a.booking_ref === bookingRef)
       if (!appt) { addBubble(`I couldn't find booking **${bookingRef}** on your account. Please double-check the reference 😊`, 'bot'); return }
+      lastBookingRef = appt.booking_ref
       const statusColor = appt.status === 'confirmed' ? '#2d6a4f' : '#c0392b'
       const statusBg    = appt.status === 'confirmed' ? '#d8f3dc' : '#fde8e8'
       addWidget(`<div style="padding:4px 2px;">
@@ -1411,6 +1511,7 @@ How can I help you today?`
           <div>฿ <strong style="color:var(--ink);">${fmtPrice(appt.services?.price)}</strong></div>
           ${appt.notes ? `<div>${appt.notes}</div>` : ''}
         </div>
+        <button type="button" class="qbtn" style="margin-top:10px" onclick="cancelBooking('${appt.booking_ref}')">Cancel this booking</button>
       </div>`, 'Appointment Details')
     } catch { /* silently fail — AI will still handle */ }
   }
@@ -1427,15 +1528,23 @@ How can I help you today?`
     const lower = msg.toLowerCase()
     const isRescheduleIntent = /\b(reschedule|change.*time|change.*date|change.*appointment|move.*appointment|update.*appointment)\b/.test(lower)
     const isBookIntent       = !isRescheduleIntent && /\b(book|appointment|schedule|reserve|slot|want to book|like to book)\b/.test(lower)
+    const isRecommendIntent  = /\b(recommend|suggestion|suggest|what should i|best for me|for me)\b/.test(lower)
     const isServiceIntent    = /\b(service|treatment|offer|price|cost|how much|menu|what do you have)\b/.test(lower)
     const isMyAppts          = /\b(my booking|my appointment|my reservation|what did i book)\b/.test(lower)
     const isCancelIntent     = /\b(cancel|cancellation)\b/.test(lower)
 
     // Services — always allowed
+    if (isRecommendIntent) {
+      addBubble(msg, 'user')
+      $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
+      await showRecommendations()
+      return
+    }
+
     if (isServiceIntent && !isBookIntent) {
       addBubble(msg, 'user')
       $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
-      addBubble("Here are our services! Tap a category to filter, or click **Book this service** to get started 😊", 'bot')
+      addBubble("Here are our treatments. Tap **Book this service** to book on the booking page.", 'bot')
       showAllServices(); return
     }
 
@@ -1447,14 +1556,20 @@ How can I help you today?`
       showMyAppointments(); return
     }
 
-    // Reschedule / cancel — login required
-    if ((isRescheduleIntent || isCancelIntent) && !rescheduleInProgress) {
+    if (isCancelIntent) {
       addBubble(msg, 'user')
       $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
-      if (!isLoggedIn) {
-        addBubble("To reschedule or cancel appointments, please log in first. 😊", 'bot')
-        openAuthModal(); return
-      }
+      const refFromMsg = (msg.match(/\bTCB-\d{8}-\d{3}\b/i) || [])[0]
+      const ref = refFromMsg ? refFromMsg.toUpperCase() : lastBookingRef
+      if (ref) { await cancelBooking(ref); return }
+      addBubble("Here are your bookings — tap Cancel on the one you want to drop.", 'bot')
+      await showMyAppointments()
+      return
+    }
+
+    if (isRescheduleIntent && !rescheduleInProgress) {
+      addBubble(msg, 'user')
+      $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
       addBubble("Sure! Please enter your **booking reference** (e.g. TCB-20260605-001) and I'll get that sorted for you 😊", 'bot')
       rescheduleInProgress = true; return
     }
@@ -1463,12 +1578,9 @@ How can I help you today?`
     if (isBookIntent) {
       addBubble(msg, 'user')
       $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
-      if (!isLoggedIn) {
-        addBubble("Sure! Browse our services below and click **Book this service** to make a quick booking — no login required! 😊\n\nOr **log in** to book via AI chat for a more personalised experience.", 'bot')
-        showAllServices(); return
-      }
-      addBubble("Sure! Which service would you like to book? Here's what we offer 👇", 'bot')
-      showAllServices(); return
+      addBubble("I'll open the booking page so you can pick a service and time.", 'bot')
+      setTimeout(function () { goToManualBooking() }, 400)
+      return
     }
 
     // Booking ref lookup
@@ -1516,7 +1628,7 @@ How can I help you today?`
       setTyping(false)
 
       if (d.slots && d.slots.length && isLoggedIn) {
-        geminiMode = true; rescheduleInProgress = false
+        aiMode = true; rescheduleInProgress = false
         if (d.message) addBubble(d.message, 'bot')
         renderSlotPicker(d.slots)
       } else {
@@ -1526,6 +1638,8 @@ How can I help you today?`
         }
       }
       if (typeof d.remaining === 'number') { remaining = d.remaining; $counter.textContent = `${d.remaining} left` }
+      if (d.stage) setStageLabel(d.stage)
+      else refreshStage()
     } catch {
       setTyping(false)
       addBubble('Could not connect to server. Is your backend running? 🔌', 'bot')

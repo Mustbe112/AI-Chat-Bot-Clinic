@@ -3,6 +3,7 @@ const router   = express.Router()
 const bcrypt   = require('bcrypt')
 const jwt      = require('jsonwebtoken')
 const prisma   = require('../services/prisma')
+const { logActivity, claimSessionBookings } = require('../services/pipeline')
 
 const JWT_SECRET      = process.env.JWT_SECRET
 const SALT_ROUNDS     = 10
@@ -148,6 +149,7 @@ router.post('/register', rateLimit('register'), async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
     const sessionId    = 'reg-' + Math.random().toString(36).slice(2, 9) + '-' + Date.now()
+    const browserSessionId = req.body.sessionId || null
 
     let user
     try {
@@ -179,6 +181,9 @@ router.post('/register', rateLimit('register'), async (req, res) => {
     )
 
     res.cookie('token', token, COOKIE_OPTIONS)
+
+    logActivity({ userId: user.id, sessionId: browserSessionId, event: 'register' })
+    await claimSessionBookings(user.id, browserSessionId)
 
     res.status(201).json({
       success: true,
@@ -234,6 +239,10 @@ router.post('/login', rateLimit('login'), async (req, res) => {
 
     res.cookie('token', token, COOKIE_OPTIONS)
 
+    const sessionId = req.body.sessionId || null
+    logActivity({ userId: user.id, sessionId, event: 'login' })
+    await claimSessionBookings(user.id, sessionId)
+
     res.json({
       success: true,
       user: {
@@ -263,8 +272,13 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', rateLimit('me'), authMiddleware, async (req, res) => {
   try {
+    const userId = Number(req.userId)
+    const sessionId = req.query.sessionId || null
+    await claimSessionBookings(userId, sessionId)
+    logActivity({ userId, sessionId, event: 'login', path: '/auth/me' })
+
     const user = await prisma.users.findUnique({
-      where: { id: req.userId },
+      where: { id: userId },
       select: {
         id: true, display_name: true, email: true, phone: true,
         picture_url: true, is_registered: true

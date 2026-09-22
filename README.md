@@ -2,7 +2,7 @@
 
 A web app for **Lumière Skin Clinic** that lets patients browse treatments, chat with an AI assistant, and book appointments — as a guest or a registered user.
 
-The chatbot (Google Gemini) answers clinic questions, shows services and prices, and can check slots or book/cancel/reschedule for logged-in users. Guests are directed to a simple booking form. Auth uses JWT, appointments live in Supabase (PostgreSQL), and the site is static HTML/JS on Vercel with a Node.js Express API on Render.
+The chatbot (Groq) answers clinic questions, shows services and prices, and can check slots or book/cancel/reschedule for logged-in users. Guests are directed to a simple booking form. Auth uses JWT, appointments live in Supabase (PostgreSQL), and the site is static HTML/JS on Vercel with a Node.js Express API on Render.
 
 **Live:** [https://ai-chat-bot-clinic.vercel.app](https://ai-chat-bot-clinic.vercel.app)
 
@@ -25,7 +25,7 @@ The chatbot (Google Gemini) answers clinic questions, shows services and prices,
 | Frontend | Static HTML, CSS, vanilla JS |
 | Backend | Node.js, Express |
 | Database | Supabase (PostgreSQL) |
-| AI | Google Gemini 2.5 Flash (function calling) |
+| AI | Groq (`llama-3.3-70b-versatile`, tool calling) |
 | Auth | JWT + bcrypt |
 
 ---
@@ -35,7 +35,8 @@ The chatbot (Google Gemini) answers clinic questions, shows services and prices,
 Create a `.env` file with:
 
 ```
-GEMINI_API_KEY=
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 JWT_SECRET=
@@ -64,7 +65,7 @@ npm run dev            # http://localhost:3000
 | Frontend hosting | Vercel (static HTML + JS) |
 | Backend hosting | Render (Node.js Express, keep-alive via `/health`) |
 | Database | Supabase (PostgreSQL) |
-| AI model | Google Gemini 2.5 Flash |
+| AI model | Groq `llama-3.3-70b-versatile` |
 | Runtime | Node.js, CommonJS |
 
 > The frontend is served as static HTML from Vercel. The backend runs as a separate Express server on Render, kept alive by UptimeRobot pinging `/health`.
@@ -148,7 +149,7 @@ Express server (Render)
   └── /appointments — slots, book, book-guest, cancel, reschedule
          │
          ├── scheduler.js  — slot availability queries (UTC+7)
-         ├── gemini.js     — Gemini API + function-calling loop
+         ├── groq.js     — Groq API + tool-calling loop
          └── supabase.js   — Supabase client (anon key)
                 │
                 ▼
@@ -170,7 +171,7 @@ Each slot supports up to **2 concurrent bookings**. Sundays are skipped. All dat
 4. Message scanned against `blocked_keywords`.
 5. Last 10 messages loaded from `chat_history` as context.
 6. System prompt chosen: **guest** (read-only) or **logged-in** (full booking access).
-7. Gemini called with matching function declarations.
+7. Groq called with matching tool declarations.
 8. Any `functionCall` responses are executed in a loop until a plain text reply is returned.
 9. Both the user message and AI reply are saved to `chat_history`.
 
@@ -194,8 +195,8 @@ Each slot supports up to **2 concurrent bookings**. Sundays are skipped. All dat
 - **Daily message cap** — 50 messages / day per user (DB-backed, resets at midnight).
 - Expired entries pruned every 5 minutes to prevent unbounded memory growth.
 
-### Gemini API resilience
-`sendWithRetry()` retries up to 3 times on HTTP 429 or 503, respecting the `RetryInfo.retryDelay` from the error details when present. Default back-off is 60 s for 429 and 5 s for 503.
+### Groq API resilience
+`groqChat()` retries up to 3 times on HTTP 429 or 503, using the `Retry-After` header when present. Default back-off is 15 s for 429 and 5 s for 503.
 
 ### Session token refresh
 On every authenticated request the server issues a refreshed JWT (`X-Refreshed-Token` header) with an updated `lastActive` timestamp, silently resetting the idle clock without a new login.
@@ -235,20 +236,20 @@ Strict allowlist: `localhost:3000` and `*.vercel.app`. All other origins rejecte
 ### 1. Timezone handling
 **Problem:** Clinic operates in UTC+7 (Thailand), but all timestamps must be stored in UTC for consistent querying.
 
-**Solution:** `thaiToUTC()` in `scheduler.js` and `thaiLocalToUTC()` in `appointment.js` / `gemini.js` convert Thai local ISO strings to UTC before any DB write. `todayInThai()` derives the current date by adding the offset to `Date.now()`. Display-only formatting always uses `Asia/Bangkok` as the `timeZone` argument.
+**Solution:** `thaiToUTC()` in `scheduler.js` and `thaiLocalToUTC()` in `appointment.js` / `groq.js` convert Thai local ISO strings to UTC before any DB write. `todayInThai()` derives the current date by adding the offset to `Date.now()`. Display-only formatting always uses `Asia/Bangkok` as the `timeZone` argument.
 
 ### 2. AI function-calling loop
-**Problem:** Gemini may return multiple sequential function calls before producing a text reply (e.g. fetch slots → book appointment).
+**Problem:** Groq may return multiple sequential tool calls before producing a text reply (e.g. fetch slots → book appointment).
 
-**Solution:** A `while` loop in `gemini.js` continues sending `functionResponse` objects back to the chat session until `response.functionCalls()` is empty. Slot data is captured from the first `get_available_slots` call and forwarded to the client alongside the final text reply so the widget can render clickable time chips.
+**Solution:** A loop in `groq.js` appends each `tool` result to the message list and calls Groq again until there are no `tool_calls`. Slot data is captured from the first `get_available_slots` call and forwarded to the client alongside the final text reply so the widget can render clickable time chips.
 
 ### 3. Guest vs logged-in AI behaviour
 **Problem:** The AI must not offer booking actions to unauthenticated users, but the same chat endpoint serves both.
 
-**Solution:** `isLoggedIn` is resolved in the chat route and passed to `gemini.js`. Two distinct system prompts are used — the guest prompt explicitly forbids calling booking functions and instructs the AI to redirect to the guest booking button. The logged-in prompt unlocks the full function declaration set.
+**Solution:** `isLoggedIn` is resolved in the chat route and passed to `groq.js`. Two distinct system prompts are used — the guest prompt explicitly forbids calling booking functions and instructs the AI to redirect to the guest booking button. The logged-in prompt unlocks the full function declaration set.
 
 ### 4. Duplicate `generateRef()` function
-**Problem:** `generateRef()` is defined identically in both `gemini.js` and `appointment.js`, creating a maintenance risk.
+**Problem:** `generateRef()` is defined identically in both `groq.js` and `appointment.js`, creating a maintenance risk.
 
 **Solution (recommended):** Extract to a shared utility file, e.g. `src/services/utils.js`, and import from both routes.
 

@@ -862,10 +862,21 @@
   </div>
 
   <script src="../assets/js/script.js"></script>
+  <script src="../assets/js/api-base.js"></script>
+  <script src="../assets/js/activity.js"></script>
   <script src="../assets/js/auth-nav.js"></script>
   <script src="../assets/js/session-timeout.js"></script>
   <script>
-    const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+    const API_BASE = window.CLINIC_API_BASE || 'https://ai-chat-bot-clinic.onrender.com'
+
+    fetch(API_BASE + '/auth/me?sessionId=' + encodeURIComponent(localStorage.getItem('clinicSessionId') || ''), {
+      credentials: 'include'
+    }).then(function (r) { return r.json() }).then(function (d) {
+      if (d && d.success && d.user) {
+        sessionStorage.setItem('lc_user', JSON.stringify(d.user))
+        window.location.replace('/')
+      }
+    }).catch(function () {})
 
     //Tab switching with animation
     function switchTab(tab) {
@@ -1002,7 +1013,7 @@
           method: 'POST',
           credentials: 'include', // required so the browser stores the HttpOnly auth cookie
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email, password, sessionId: localStorage.getItem('clinicSessionId') })
         })
         const data = await res.json()
 
@@ -1052,7 +1063,7 @@
           method: 'POST',
           credentials: 'include', // required so the browser stores the HttpOnly auth cookie
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone, email, idNumber, password })
+          body: JSON.stringify({ name, phone, email, idNumber, password, sessionId: localStorage.getItem('clinicSessionId') })
         })
         const data = await res.json()
 

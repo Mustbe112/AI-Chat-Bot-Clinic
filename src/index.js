@@ -7,6 +7,7 @@ require('dotenv').config()
 const { router: authRoutes } = require('./routes/auth')
 const chatRoutes              = require('./routes/chat')
 const appointmentRoutes       = require('./routes/appointment')
+const activityRoutes          = require('./routes/activity')
 
 const app  = express()
 const PORT = process.env.PORT || 3000
@@ -18,7 +19,8 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app')) {
+    const localDev = origin && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app') || localDev) {
       callback(null, true)
     } else {
       callback(new Error('Not allowed by CORS'))
@@ -39,6 +41,7 @@ app.use(express.static(path.join(__dirname, '../public'), { index: false }))
 app.use('/auth',         authRoutes)
 app.use('/chat',         chatRoutes)
 app.use('/appointments', appointmentRoutes)
+app.use('/activity',     activityRoutes)
 
 // Health check (for UptimeRobot / Render keep-alive)
 app.get('/health', (req, res) => {

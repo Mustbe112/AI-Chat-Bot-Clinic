@@ -1,11 +1,14 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai')
 const supabase = require('./supabase')
+const prisma   = require('./prisma')
 const { getSlotsForDate, isSlotAvailable } = require('./scheduler')
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+const { deriveStage, stagePrompt, ownedAppointmentWhere } = require('./pipeline')
+
+const GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions'
+const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile'
 
 // ── Per-user chat rate limiter ────────────────────────────
 // Keyed by userId. Prevents burst-sending all daily messages
-// in seconds and hammering the Gemini API.
+// in seconds and hammering the Groq API.
 // For multi-instance deployments, replace with Redis.
 const chatRateStore = new Map()
 const CHAT_RATE = { windowMs: 10 * 1000, max: 5 }  // 5 messages per 10 seconds
@@ -51,7 +54,8 @@ You are a friendly and professional AI assistant for "Lumière Skin Clinic", a f
 
 YOUR ROLE:
 - Help users learn about our clinic services
-- Recommend appropriate treatments based on skin concerns
+- Recommend treatments from the RECOMMENDED SERVICES list when it is present
+- Recommend appropriate treatments based on skin concerns and their recent activity
 - Answer questions about pricing and treatment details
 - Show available appointment slots when asked
 - Assist logged-in users with booking, cancellation, and rescheduling
@@ -203,8 +207,10 @@ const BOOKING_FUNCTIONS = [
 
 //  FUNCTION HANDLERS
 
-async function handleFunctionCall(functionName, args, userId) {
-  console.log(`[Gemini Fn] ${functionName}`, args)
+async function handleFunctionCall(functionName, args, ctx) {
+  const userId    = ctx && typeof ctx === 'object' ? ctx.userId : ctx
+  const sessionId = ctx && typeof ctx === 'object' ? ctx.sessionId : null
+  console.log(`[Groq Fn] ${functionName}`, args)
 
   switch (functionName) {
 
@@ -255,27 +261,55 @@ async function handleFunctionCall(functionName, args, userId) {
 
     case 'cancel_appointment': {
       const { booking_ref } = args
+      if (!userId) return { success: false, message: 'Please log in to cancel appointments.' }
+      const user = await prisma.users.findUnique({
+        where: { id: userId },
+        select: { id: true, email: true, phone: true }
+      })
+      if (!user) return { success: false, message: 'Please log in to cancel appointments.' }
+      const ors = [
+        { user_id: user.id },
+        user.email ? { guest_email: user.email.toLowerCase().trim() } : null,
+        user.phone ? { guest_phone: user.phone.trim() } : null
+      ].filter(Boolean)
 
-      const { data: appointment } = await supabase
-        .from('appointments').select('id, status')
-        .eq('booking_ref', booking_ref).eq('user_id', userId).single()
+      const appointment = await prisma.appointments.findFirst({
+        where: { booking_ref, OR: ors },
+        select: { id: true, status: true }
+      })
 
       if (!appointment) return { success: false, message: `Booking ${booking_ref} not found on your account.` }
       if (appointment.status === 'cancelled') return { success: false, message: 'This appointment is already cancelled.' }
 
-      await supabase.from('appointments').update({ status: 'cancelled' }).eq('id', appointment.id)
+      await prisma.appointments.update({
+        where: { id: appointment.id },
+        data: { status: 'cancelled' }
+      })
       return { success: true, message: `Appointment ${booking_ref} has been cancelled successfully.` }
     }
 
     case 'get_my_appointments': {
-      const { data: appointments } = await supabase
-        .from('appointments')
-        .select('booking_ref, slot_datetime, status, services(name, price)')
-        .eq('user_id', userId)
-        .eq('status', 'confirmed')
-        .order('slot_datetime', { ascending: true })
+      const user = userId
+        ? await prisma.users.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true, phone: true }
+          })
+        : null
+      const ors = await ownedAppointmentWhere(user, sessionId)
+      if (!ors.length) return { success: true, message: 'You have no upcoming appointments.' }
 
-      if (!appointments || appointments.length === 0) {
+      const appointments = await prisma.appointments.findMany({
+        where: { status: 'confirmed', OR: ors },
+        select: {
+          booking_ref: true,
+          slot_datetime: true,
+          status: true,
+          services: { select: { name: true, price: true } }
+        },
+        orderBy: { slot_datetime: 'asc' }
+      })
+
+      if (!appointments.length) {
         return { success: true, message: 'You have no upcoming appointments.' }
       }
       return { success: true, appointments }
@@ -287,9 +321,19 @@ async function handleFunctionCall(functionName, args, userId) {
         ? thaiLocalToUTC(args.new_slot_datetime)
         : undefined
 
-      const { data: appointment } = await supabase
-        .from('appointments').select('id, status, slot_datetime, service_id')
-        .eq('booking_ref', booking_ref).eq('user_id', userId).single()
+      const user = userId
+        ? await prisma.users.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true, phone: true }
+          })
+        : null
+      const ors = await ownedAppointmentWhere(user, sessionId)
+      if (!ors.length) return { success: false, message: 'Please log in to reschedule appointments.' }
+
+      const appointment = await prisma.appointments.findFirst({
+        where: { booking_ref, OR: ors },
+        select: { id: true, status: true, slot_datetime: true, service_id: true }
+      })
 
       if (!appointment) return { success: false, message: `Booking ${booking_ref} not found on your account.` }
       if (appointment.status === 'cancelled') return { success: false, message: 'Cannot reschedule a cancelled appointment.' }
@@ -349,8 +393,8 @@ async function getChatHistory(userId) {
 
   if (error || !data) return []
   return data.reverse().map(msg => ({
-    role:  msg.role,
-    parts: [{ text: msg.content }]
+    role:    msg.role === 'model' ? 'assistant' : 'user',
+    content: msg.content
   }))
 }
 
@@ -398,33 +442,91 @@ async function generateRef() {
 
 function sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
 
-async function sendWithRetry(chatSession, message, maxRetries = 3) {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await chatSession.sendMessage(message)
-    } catch (error) {
-      const retryable = error.status === 429 || error.status === 503
-      if (retryable && attempt < maxRetries) {
-        let delayMs = error.status === 503 ? 5000 : 60000
-        try {
-          const retryInfo = error.errorDetails?.find(d => d['@type']?.includes('RetryInfo'))
-          if (retryInfo?.retryDelay) delayMs = parseInt(retryInfo.retryDelay) * 1000
-        } catch {}
-        console.log(`[Gemini] ${error.status} — retrying in ${delayMs / 1000}s (${attempt}/${maxRetries})`)
-        await sleep(delayMs)
-      } else {
-        throw error
+function jsonType(t) {
+  if (!t) return 'string'
+  const n = String(t).toLowerCase()
+  if (n === 'number' || n === 'integer') return 'number'
+  if (n === 'boolean') return 'boolean'
+  if (n === 'array') return 'array'
+  if (n === 'object') return 'object'
+  return 'string'
+}
+
+function toGroqTools(fns) {
+  return fns.map(fn => {
+    const props = {}
+    for (const [key, spec] of Object.entries(fn.parameters?.properties || {})) {
+      props[key] = { type: jsonType(spec.type), description: spec.description || '' }
+    }
+    return {
+      type: 'function',
+      function: {
+        name:        fn.name,
+        description: fn.description,
+        parameters: {
+          type:       'object',
+          properties: props,
+          required:   fn.parameters?.required || []
+        }
       }
     }
+  })
+}
+
+async function groqChat(messages, tools, maxRetries = 3) {
+  if (!process.env.GROQ_API_KEY) {
+    const err = new Error('GROQ_API_KEY is not set')
+    err.status = 500
+    throw err
+  }
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const res = await fetch(GROQ_URL, {
+      method:  'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model:       GROQ_MODEL,
+        messages,
+        tools:       tools.length ? tools : undefined,
+        tool_choice: tools.length ? 'auto' : undefined,
+        temperature: 0.4
+      })
+    })
+
+    if (res.status === 429 || res.status === 503) {
+      if (attempt < maxRetries) {
+        const retryAfter = parseInt(res.headers.get('retry-after') || '', 10)
+        const delayMs = Number.isFinite(retryAfter)
+          ? retryAfter * 1000
+          : (res.status === 503 ? 5000 : 15000)
+        console.log(`[Groq] ${res.status} — retrying in ${delayMs / 1000}s (${attempt}/${maxRetries})`)
+        await sleep(delayMs)
+        continue
+      }
+      const err = new Error(`Groq ${res.status}`)
+      err.status = res.status
+      throw err
+    }
+
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const err = new Error(data.error?.message || `Groq ${res.status}`)
+      err.status = res.status
+      throw err
+    }
+    return data
   }
 }
 
 //  MAIN CHAT FUNCTION
 
-async function chat(userId, userMessage, isLoggedIn = false) {
+async function chat(userId, userMessage, isLoggedIn = false, opts = {}) {
 
   if (userMessage.length > 200) {
-    return { success: false, message: 'Your message is a bit long. Could you shorten it?' }
+    return { success: false, message: 'Your message is a bit long. Could you shorten it?', stage: null }
   }
 
   const rateCheck = checkChatRateLimit(userId)
@@ -447,40 +549,63 @@ async function chat(userId, userMessage, isLoggedIn = false) {
 
   const history = await getChatHistory(userId)
 
-  // Choose system prompt and available functions based on login status
-  const systemPrompt = isLoggedIn ? LOGGEDIN_SYSTEM_PROMPT : GUEST_SYSTEM_PROMPT
+  const pipeline = await deriveStage(userId, opts.sessionId)
+  const systemPrompt = (isLoggedIn ? LOGGEDIN_SYSTEM_PROMPT : GUEST_SYSTEM_PROMPT)
+    + stagePrompt(pipeline.stage, pipeline)
   const functions    = isLoggedIn
     ? [SLOT_FUNCTION, ...BOOKING_FUNCTIONS]
     : [SLOT_FUNCTION]  // guest can only see slots, not book
 
   try {
-    const model = genAI.getGenerativeModel({
-      model:             'gemini-2.5-flash',
-      systemInstruction: systemPrompt,
-      tools:             [{ functionDeclarations: functions }]
-    })
-
-    const chatSession = model.startChat({ history })
-    let result   = await sendWithRetry(chatSession, userMessage)
-    let response = result.response
+    const tools = toGroqTools(functions)
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content: userMessage }
+    ]
 
     let slotsData = null
+    let reply     = ''
 
-    while ((response.functionCalls() || []).length > 0) {
-      const functionCall = response.functionCalls()[0]
-      const fnResult     = await handleFunctionCall(functionCall.name, functionCall.args, userId)
+    for (let step = 0; step < 6; step++) {
+      const data    = await groqChat(messages, tools)
+      const choice  = data.choices?.[0]?.message
+      if (!choice) throw new Error('Empty Groq response')
 
-      if (functionCall.name === 'get_available_slots' && fnResult.success) {
-        slotsData = fnResult.slots
+      const toolCalls = choice.tool_calls || []
+      if (!toolCalls.length) {
+        reply = (choice.content || '').trim()
+        break
       }
 
-      result   = await sendWithRetry(chatSession, [{
-        functionResponse: { name: functionCall.name, response: fnResult }
-      }])
-      response = result.response
+      messages.push({
+        role:       'assistant',
+        content:    choice.content || null,
+        tool_calls: toolCalls
+      })
+
+      for (const call of toolCalls) {
+        let args = {}
+        try { args = JSON.parse(call.function?.arguments || '{}') } catch { args = {} }
+        const fnResult = await handleFunctionCall(call.function.name, args, {
+          userId,
+          sessionId: opts.sessionId
+        })
+
+        if (call.function.name === 'get_available_slots' && fnResult.success) {
+          slotsData = fnResult.slots
+        }
+
+        messages.push({
+          role:         'tool',
+          tool_call_id: call.id,
+          name:         call.function.name,
+          content:      JSON.stringify(fnResult)
+        })
+      }
     }
 
-    const reply = response.text()
+    if (!reply) reply = 'I could not complete that request. Please try again.'
 
     await saveMessage(userId, 'user', userMessage)
     await saveMessage(userId, 'model', reply)
@@ -490,21 +615,15 @@ async function chat(userId, userMessage, isLoggedIn = false) {
       success:   true,
       message:   reply,
       remaining: limitCheck.remaining - 1,
-      slots:     slotsData || null
+      slots:     slotsData || null,
+      stage:     pipeline.stage
     }
 
   } catch (error) {
-    console.error('Gemini API error:', error)
+    console.error('Groq API error:', error)
 
     if (error.status === 429 || error.status === 503) {
-      let waitMsg = 'Please try again in a moment.'
-      try {
-        const retryInfo = error.errorDetails?.find(d => d['@type']?.includes('RetryInfo'))
-        if (retryInfo?.retryDelay) {
-          waitMsg = `Please try again in about ${parseInt(retryInfo.retryDelay)} seconds`
-        }
-      } catch {}
-      return { success: false, message: `Our AI assistant is a bit busy right now. ${waitMsg}` }
+      return { success: false, message: 'Our AI assistant is a bit busy right now. Please try again in a moment.' }
     }
 
     return { success: false, message: 'Something went wrong. Please try again shortly.' }

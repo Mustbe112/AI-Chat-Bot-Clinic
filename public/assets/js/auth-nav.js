@@ -1,6 +1,6 @@
 (function () {
 
-  const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+  const API_BASE = window.CLINIC_API_BASE || 'https://ai-chat-bot-clinic.onrender.com'
 
   // ── Idle timeout ──────────────────────────────────────────
   // Logs the user out after 30 min of no mouse/keyboard/touch
@@ -94,8 +94,8 @@
   function applyAuthToNav() {
     const user = JSON.parse(sessionStorage.getItem('lc_user') || 'null')
 
-    const authBtn      = document.getElementById('nav-auth-btn')
-    const mobileBtn    = document.getElementById('mobile-auth-btn')
+    const authBtn      = document.getElementById('nav-auth-btn') || document.getElementById('nav-auth-link')
+    const mobileBtn    = document.getElementById('mobile-auth-btn') || document.getElementById('mobile-auth-link')
     const logoutBtn    = document.getElementById('nav-logout-btn')
     const mobileLogout = document.getElementById('mobile-logout-btn')
 
@@ -103,9 +103,9 @@
       // ── Logged-in state ──────────────────────────────────
       const firstName = user.displayName ? user.displayName.split(' ')[0] : 'Me'
 
-      if (authBtn && authBtn.id === 'nav-auth-btn') {
+      if (authBtn && (authBtn.id === 'nav-auth-btn' || authBtn.id === 'nav-auth-link')) {
         authBtn.outerHTML = `
-          <a href="/chatbot" class="nav-user-chip" id="nav-auth-btn">
+          <a href="/chatbot" class="nav-user-chip" id="${authBtn.id}">
             <img class="nav-user-avatar"
                  src="${user.pictureUrl || ''}"
                  alt="${user.displayName}"
@@ -124,9 +124,9 @@
 
     } else {
       // ── Logged-out state ─────────────────────────────────
-      const chip = document.querySelector('.nav-user-chip#nav-auth-btn')
+      const chip = document.querySelector('.nav-user-chip#nav-auth-btn, .nav-user-chip#nav-auth-link')
       if (chip) {
-        chip.outerHTML = `<a href="/login" id="nav-auth-btn">Sign In</a>`
+        chip.outerHTML = `<a href="/login" id="${chip.id}">Sign In</a>`
       }
       if (mobileBtn) {
         mobileBtn.textContent = 'Sign In'
@@ -151,7 +151,8 @@
 
   // ── Verify session on page load via /auth/me ─────────────
   function checkSession() {
-    fetch(API_BASE + '/auth/me', {
+    var sid = localStorage.getItem('clinicSessionId') || ''
+    fetch(API_BASE + '/auth/me' + (sid ? ('?sessionId=' + encodeURIComponent(sid)) : ''), {
       credentials: 'include'   // sends the cookie automatically
     })
     .then(function (res) {

@@ -1,9 +1,8 @@
 const express  = require('express')
 const router   = express.Router()
-const jwt      = require('jsonwebtoken')
 const prisma   = require('../services/prisma')
 const { getAvailableSlots, isSlotAvailable } = require('../services/scheduler')
-const { authMiddleware } = require('./auth')
+const { logActivity, readTokenUserId, claimSessionBookings, ownedAppointmentWhere } = require('../services/pipeline')
 
 const TZ_OFFSET_MS = 7 * 60 * 60 * 1000
 function thaiLocalToUTC(isoStr) {
@@ -31,25 +30,27 @@ async function resolveUser(req) {
   })
 }
 
-// Optional auth middleware — sets req.userId if valid Bearer token present,
-// but does NOT reject if no token (allows guest browsing to still work).
+function activitySession(req) {
+  return req.query.sessionId || req.body?.sessionId || null
+}
+
+// Optional auth — cookie or Bearer. Does not reject guests.
 function optionalAuth(req, res, next) {
-  const header = req.headers.authorization
-  if (header && header.startsWith('Bearer ')) {
-    try {
-      const secret = process.env.JWT_SECRET || 'change-me-in-production'
-      const payload = jwt.verify(header.slice(7), secret)
-      req.userId = payload.userId
-    } catch { /* ignore invalid token */ }
-  }
+  const userId = readTokenUserId(req)
+  if (userId) req.userId = userId
   next()
 }
 
 //  GET /appointments/slots
-router.get('/slots', async (req, res) => {
+router.get('/slots', optionalAuth, async (req, res) => {
   try {
     const days  = parseInt(req.query.days) || 7
     const slots = await getAvailableSlots(days)
+    logActivity({
+      userId:    req.userId || null,
+      sessionId: activitySession(req),
+      event:     'view_slots'
+    })
     res.json({ success: true, slots })
   } catch (error) {
     console.error('Slots error:', error)
@@ -58,7 +59,7 @@ router.get('/slots', async (req, res) => {
 })
 
 //  GET /appointments/services
-router.get('/services', async (req, res) => {
+router.get('/services', optionalAuth, async (req, res) => {
   try {
     const services = await prisma.services.findMany({
       where: { is_active: true },
@@ -71,6 +72,12 @@ router.get('/services', async (req, res) => {
       return acc
     }, {})
 
+    logActivity({
+      userId:    req.userId || null,
+      sessionId: activitySession(req),
+      event:     'view_services'
+    })
+
     res.json({ success: true, services, grouped })
   } catch (error) {
     console.error('Services error:', error)
@@ -81,11 +88,20 @@ router.get('/services', async (req, res) => {
 //  GET /appointments/my  — requires auth
 router.get('/my', optionalAuth, async (req, res) => {
   try {
-    const user = await resolveUser(req)
-    if (!user) return res.json({ success: true, appointments: [] })
+    const sessionId = activitySession(req)
+    if (req.userId) await claimSessionBookings(req.userId, sessionId)
+    const user = req.userId
+      ? await prisma.users.findUnique({
+          where: { id: Number(req.userId) },
+          select: { id: true, email: true, phone: true }
+        })
+      : null
+    const ors = await ownedAppointmentWhere(user, sessionId)
+
+    if (!ors.length) return res.json({ success: true, appointments: [] })
 
     const appointments = await prisma.appointments.findMany({
-      where: { user_id: user.id },
+      where: { OR: ors },
       select: {
         id: true, booking_ref: true, slot_datetime: true, status: true, notes: true,
         guest_name: true, guest_phone: true, guest_email: true, created_at: true,
@@ -101,10 +117,19 @@ router.get('/my', optionalAuth, async (req, res) => {
   }
 })
 
-//  POST /appointments/book  — Way 2 (chatbot, requires login)
+//  POST /appointments/book  — logged-in only (JWT cookie / Bearer)
 router.post('/book', optionalAuth, async (req, res) => {
   try {
-    const user = await resolveUser(req)
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Please log in to book via the AI assistant.'
+      })
+    }
+    const user = await prisma.users.findUnique({
+      where: { id: req.userId },
+      select: { id: true, display_name: true, email: true, phone: true }
+    })
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -112,7 +137,8 @@ router.post('/book', optionalAuth, async (req, res) => {
       })
     }
 
-    const { serviceId, notes } = req.body
+    const { notes } = req.body
+    const serviceId = Number(req.body.serviceId)
     const slotDatetime = thaiLocalToUTC(req.body.slotDatetime)
 
     if (!serviceId || !slotDatetime) {
@@ -131,17 +157,30 @@ router.post('/book', optionalAuth, async (req, res) => {
 
     if (!service) return res.status(404).json({ success: false, message: 'Service not found.' })
 
-    const bookingRef = await generateRef()
+    const guestEmail = (req.body.guestEmail || user.email || '').toLowerCase().trim() || null
+    const guestPhone = (req.body.guestPhone || user.phone || '').trim() || null
+    if (Number.isNaN(new Date(slotDatetime).getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid appointment time. Please pick the slot again.' })
+    }
 
-    await prisma.appointments.create({
-      data: {
-        user_id:       user.id,
-        service_id:    serviceId,
-        slot_datetime: slotDatetime,
-        booking_ref:   bookingRef,
-        notes:         notes || null,
-        status:        'confirmed'
-      }
+    const bookingRef = await createAppointmentWithRef({
+      user_id:       user.id,
+      service_id:    serviceId,
+      slot_datetime: slotDatetime,
+      notes:         notes || null,
+      status:        'confirmed',
+      guest_name:    req.body.guestName || user.display_name || null,
+      guest_phone:   guestPhone,
+      guest_email:   guestEmail
+    })
+
+    const sessionId = activitySession(req)
+    await claimSessionBookings(user.id, sessionId)
+    logActivity({
+      userId:    user.id,
+      sessionId,
+      event:     'book',
+      meta:      { bookingRef, serviceId }
     })
 
     res.json({
@@ -156,9 +195,10 @@ router.post('/book', optionalAuth, async (req, res) => {
 
 //  POST /appointments/book-guest  — Way 1 (Book Now button)
 //  No login required. Collects name, phone, email from form.
-router.post('/book-guest', async (req, res) => {
+router.post('/book-guest', optionalAuth, async (req, res) => {
   try {
-    const { guestName, guestPhone, guestEmail, serviceId, notes } = req.body
+    const { guestName, guestPhone, guestEmail, notes } = req.body
+    const serviceId = Number(req.body.serviceId)
     const slotDatetime = thaiLocalToUTC(req.body.slotDatetime)
 
     if (!guestName || !guestPhone || !serviceId || !slotDatetime) {
@@ -180,50 +220,73 @@ router.post('/book-guest', async (req, res) => {
 
     if (!service) return res.status(404).json({ success: false, message: 'Service not found.' })
 
-    // Upsert a guest user row (keyed by email) so we can track appointments
-    // without requiring full registration.
-    let guestUser = null
-    if (guestEmail) {
+    const sessionId = activitySession(req)
+    const normalizedEmail = guestEmail ? guestEmail.toLowerCase().trim() : null
+
+    // Prefer the signed-in account, then same email/phone, then this browser session.
+    let guestUser = req.userId ? { id: req.userId } : null
+    if (!guestUser && normalizedEmail) {
       guestUser = await prisma.users.findUnique({
-        where: { email: guestEmail.toLowerCase().trim() },
+        where: { email: normalizedEmail },
         select: { id: true }
       })
     }
+    if (!guestUser && guestPhone) {
+      guestUser = await prisma.users.findFirst({
+        where: { phone: guestPhone.trim(), is_registered: true },
+        select: { id: true }
+      })
+    }
+    if (!guestUser && sessionId) {
+      const sessionUser = await prisma.users.findUnique({
+        where: { session_id: sessionId },
+        select: { id: true, is_registered: true }
+      })
+      if (sessionUser && !sessionUser.is_registered) guestUser = sessionUser
+    }
 
     if (!guestUser) {
-      // Create a minimal guest user row
-      const sessionId = 'guest-' + Math.random().toString(36).slice(2, 9) + '-' + Date.now()
+      const newSessionId = sessionId || ('guest-' + Math.random().toString(36).slice(2, 9) + '-' + Date.now())
       try {
         guestUser = await prisma.users.create({
           data: {
             display_name:  guestName.trim(),
-            email:         guestEmail ? guestEmail.toLowerCase().trim() : null,
+            email:         normalizedEmail,
             phone:         guestPhone.trim(),
-            session_id:    sessionId,
+            session_id:    newSessionId,
             is_registered: false,
-            picture_url:   `https://api.dicebear.com/7.x/personas/svg?seed=${sessionId}`
+            picture_url:   `https://api.dicebear.com/7.x/personas/svg?seed=${newSessionId}`
           },
           select: { id: true }
         })
       } catch (uErr) {
-        throw uErr
+        if (uErr.code === 'P2002' && sessionId) {
+          guestUser = await prisma.users.findUnique({
+            where: { session_id: sessionId },
+            select: { id: true }
+          })
+        }
+        if (!guestUser) throw uErr
       }
     }
 
-    const bookingRef = await generateRef()
+    const bookingRef = await createAppointmentWithRef({
+      user_id:       guestUser.id,
+      service_id:    serviceId,
+      slot_datetime: slotDatetime,
+      notes:         notes || null,
+      status:        'confirmed',
+      guest_name:    guestName.trim(),
+      guest_phone:   guestPhone.trim(),
+      guest_email:   normalizedEmail
+    })
 
-    await prisma.appointments.create({
-      data: {
-        user_id:       guestUser.id,
-        service_id:    serviceId,
-        slot_datetime: slotDatetime,
-        booking_ref:   bookingRef,
-        notes:         notes || null,
-        status:        'confirmed',
-        guest_name:    guestName.trim(),
-        guest_phone:   guestPhone.trim(),
-        guest_email:   guestEmail ? guestEmail.toLowerCase().trim() : null
-      }
+    if (req.userId) await claimSessionBookings(req.userId, sessionId)
+    logActivity({
+      userId:    guestUser.id,
+      sessionId,
+      event:     'book_guest',
+      meta:      { bookingRef, serviceId }
     })
 
     res.json({
@@ -246,10 +309,24 @@ router.post('/book-guest', async (req, res) => {
 //  PATCH /appointments/cancel  — requires auth
 router.patch('/cancel', optionalAuth, async (req, res) => {
   try {
-    const user = await resolveUser(req)
+    if (!req.userId) {
+      return res.status(401).json({ success: false, message: 'Please log in to cancel appointments.' })
+    }
+    const sessionId = activitySession(req)
+    await claimSessionBookings(req.userId, sessionId)
+
+    const user = await prisma.users.findUnique({
+      where: { id: Number(req.userId) },
+      select: { id: true, email: true, phone: true }
+    })
     if (!user) {
       return res.status(401).json({ success: false, message: 'Please log in to cancel appointments.' })
     }
+    const ors = [
+      { user_id: user.id },
+      user.email ? { guest_email: user.email.toLowerCase().trim() } : null,
+      user.phone ? { guest_phone: user.phone.trim() } : null
+    ].filter(Boolean)
 
     const { bookingRef } = req.body
     if (!bookingRef) {
@@ -257,8 +334,8 @@ router.patch('/cancel', optionalAuth, async (req, res) => {
     }
 
     const appointment = await prisma.appointments.findFirst({
-      where: { booking_ref: bookingRef, user_id: user.id },
-      select: { id: true, status: true }
+      where: { booking_ref: bookingRef, OR: ors },
+      select: { id: true, status: true, user_id: true }
     })
 
     if (!appointment) {
@@ -273,6 +350,13 @@ router.patch('/cancel', optionalAuth, async (req, res) => {
       data: { status: 'cancelled' }
     })
 
+    logActivity({
+      userId:    (user && user.id) || appointment.user_id,
+      sessionId,
+      event:     'cancel',
+      meta:      { bookingRef }
+    })
+
     res.json({ success: true, message: `Appointment ${bookingRef} cancelled successfully.` })
   } catch (error) {
     console.error('Cancel error:', error)
@@ -283,10 +367,24 @@ router.patch('/cancel', optionalAuth, async (req, res) => {
 //  PATCH /appointments/reschedule  — requires auth
 router.patch('/reschedule', optionalAuth, async (req, res) => {
   try {
-    const user = await resolveUser(req)
+    if (!req.userId) {
+      return res.status(401).json({ success: false, message: 'Please log in to reschedule appointments.' })
+    }
+    const sessionId = activitySession(req)
+    await claimSessionBookings(req.userId, sessionId)
+
+    const user = await prisma.users.findUnique({
+      where: { id: Number(req.userId) },
+      select: { id: true, email: true, phone: true }
+    })
     if (!user) {
       return res.status(401).json({ success: false, message: 'Please log in to reschedule appointments.' })
     }
+    const ors = [
+      { user_id: user.id },
+      user.email ? { guest_email: user.email.toLowerCase().trim() } : null,
+      user.phone ? { guest_phone: user.phone.trim() } : null
+    ].filter(Boolean)
 
     const { bookingRef, newServiceId } = req.body
     const newSlotDatetime = req.body.newSlotDatetime
@@ -301,8 +399,8 @@ router.patch('/reschedule', optionalAuth, async (req, res) => {
     }
 
     const appointment = await prisma.appointments.findFirst({
-      where: { booking_ref: bookingRef, user_id: user.id },
-      select: { id: true, status: true, slot_datetime: true, service_id: true }
+      where: { booking_ref: bookingRef, OR: ors },
+      select: { id: true, status: true, slot_datetime: true, service_id: true, user_id: true }
     })
 
     if (!appointment) {
@@ -334,6 +432,13 @@ router.patch('/reschedule', optionalAuth, async (req, res) => {
       data: { slot_datetime: targetSlot, service_id: targetServiceId }
     })
 
+    logActivity({
+      userId:    (user && user.id) || appointment.user_id,
+      sessionId,
+      event:     'reschedule',
+      meta:      { bookingRef }
+    })
+
     const updatedService = await prisma.services.findUnique({
       where: { id: targetServiceId },
       select: { name: true, price: true }
@@ -357,9 +462,35 @@ router.patch('/reschedule', optionalAuth, async (req, res) => {
 
 // ── Booking reference generator ───────────────────────────
 async function generateRef() {
-  const today = new Date().toISOString().split('T')[0].replace(/-/g, '')
-  const count = await prisma.appointments.count()
-  return `TCB-${today}-${String((count || 0) + 1).padStart(3, '0')}`
+  const today = new Date(Date.now() + TZ_OFFSET_MS).toISOString().split('T')[0].replace(/-/g, '')
+  const prefix = `TCB-${today}-`
+  const latest = await prisma.appointments.findMany({
+    where: { booking_ref: { startsWith: prefix } },
+    select: { booking_ref: true },
+    orderBy: { booking_ref: 'desc' },
+    take: 1
+  })
+  let next = 1
+  if (latest[0]) {
+    const n = parseInt(latest[0].booking_ref.slice(prefix.length), 10)
+    if (Number.isFinite(n)) next = n + 1
+  }
+  return `${prefix}${String(next).padStart(3, '0')}`
+}
+
+async function createAppointmentWithRef(data) {
+  let lastErr
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const bookingRef = await generateRef()
+    try {
+      await prisma.appointments.create({ data: { ...data, booking_ref: bookingRef } })
+      return bookingRef
+    } catch (err) {
+      lastErr = err
+      if (err.code !== 'P2002') throw err
+    }
+  }
+  throw lastErr
 }
 
 module.exports = router

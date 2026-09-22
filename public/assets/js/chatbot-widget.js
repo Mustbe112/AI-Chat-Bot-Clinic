@@ -15,7 +15,7 @@
 ;(function () {
 
   // ── Backend URL ────────────────────────────────────────────
-  const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+  const API_BASE = window.CLINIC_API_BASE || 'https://ai-chat-bot-clinic.onrender.com'
 
   // ── Wake up Render on load (free tier spins down) ──────────
   let cwServerReady = false
@@ -57,6 +57,7 @@
       <button id="cw-auth-status" class="guest" onclick="cwOpenAuth()"><svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:2px;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Login</button>
       <div id="cw-msg-counter">20 left</div>
     </div>
+    <div id="cw-stage-bar">Stage: <span id="cw-stage-label">visitor</span></div>
 
     <!-- Guest notice (shown when not logged in) -->
     <div id="cw-guest-notice">
@@ -73,14 +74,10 @@
       <div class="cw-msg-row bot" id="cw-welcome-row">
         <div class="cw-row-icon"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b87166" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
         <div class="cw-bubble-wrap">
-          <div class="cw-bubble">Hello! Welcome to <strong>Lumière Skin Clinic</strong>
-
-I'm your AI skin consultant. I can help you with:
-• Treatment recommendations for your skin concerns
-• Service pricing &amp; details
-• Viewing available appointment slots
-
-<em>Log in to book, cancel, or reschedule appointments via chat.</em></div>
+          <div class="cw-bubble">Hello! Welcome to <strong>Lumière Skin Clinic</strong>.<br><br>
+I can recommend treatments, show prices, and check available times.<br><br>
+To book, tap <strong>Book this service</strong> — that opens the booking page (easier than booking in chat).<br><br>
+<em>Log in to see My Bookings and manage appointments.</em></div>
           <div class="cw-msg-time" id="cw-welcome-time"></div>
         </div>
       </div>
@@ -94,9 +91,10 @@ I'm your AI skin consultant. I can help you with:
 
     <div id="cw-quick-bar">
       <button class="cw-qbtn" onclick="cwShowAllServices()"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg> Services</button>
+      <button class="cw-qbtn" onclick="cwGoToManualBooking()"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Book Now</button>
       <button class="cw-qbtn" onclick="cwShowSlots()"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Slots</button>
       <button class="cw-qbtn" id="cw-qbtn-mybookings" onclick="cwShowMyAppointments()" style="display:none"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> My Bookings</button>
-      <button class="cw-qbtn" onclick="cwSendQuick('What do you recommend for acne?')"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Recommend</button>
+      <button class="cw-qbtn" onclick="cwShowRecommendations()"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Recommend</button>
       <button class="cw-qbtn" id="cw-qbtn-reschedule" onclick="cwSendQuick('I want to reschedule my appointment')" style="display:none"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Reschedule</button>
     </div>
 
@@ -222,19 +220,13 @@ I'm your AI skin consultant. I can help you with:
       sessionStorage.setItem('cw-opened', '1')
       setTimeout(() => document.getElementById('cw-input')?.focus(), 300)
       cwScrollBottom()
+      if (typeof cwRefreshStage === 'function') cwRefreshStage()
     }
   })
 
-  document.addEventListener('click', e => {
-    const authOverlay = document.getElementById('cw-auth-overlay')
-    const bookOverlay = document.getElementById('cw-book-overlay')
-    if (!$panel.contains(e.target) && !$fab.contains(e.target) &&
-        !authOverlay?.contains(e.target) && !bookOverlay?.contains(e.target) &&
-        $panel.classList.contains('open')) {
-      $panel.classList.remove('open')
-      $fab.classList.remove('open')
-    }
-  })
+  // Do not close on outside clicks — the native date picker sits outside
+  // the panel and was shutting the chat when users searched for slots.
+  // Close only via the FAB.
 
   // ── Auth state ─────────────────────────────────────────────
   // No token in JS — the HttpOnly cookie is sent automatically.
@@ -242,6 +234,7 @@ I'm your AI skin consultant. I can help you with:
   // cwLoggedIn is set after /auth/me confirms the cookie is valid.
   let cwUser     = null
   let cwLoggedIn = false
+  let cwLastBookingRef = null
 
   // Restore display data from sessionStorage if available,
   // then verify with the server that the cookie is still valid.
@@ -252,7 +245,7 @@ I'm your AI skin consultant. I can help you with:
 
   async function cwVerifySession() {
     try {
-      const r = await fetch(`${API_BASE}/auth/me`, {
+      const r = await fetch(`${API_BASE}/auth/me?sessionId=${encodeURIComponent(cwSessionId)}`, {
         credentials: 'include'  // sends the HttpOnly cookie automatically
       })
       const d = await r.json()
@@ -270,6 +263,7 @@ I'm your AI skin consultant. I can help you with:
       cwLoggedIn = !!cwUser
     }
     cwUpdateAuthUI()
+    cwRefreshStage()
   }
 
   function cwUpdateAuthUI() {
@@ -344,7 +338,7 @@ How can I help you today?`
         method:      'POST',
         credentials: 'include',  // receives and stores the HttpOnly cookie
         headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({ email, password })
+        body:        JSON.stringify({ email, password, sessionId: cwSessionId })
       })
       const d = await r.json()
       if (d.success) {
@@ -356,6 +350,7 @@ How can I help you today?`
         window.dispatchEvent(new CustomEvent('auth:login', { detail: { user: cwUser } }))
         cwCloseAuth()
         cwUpdateAuthUI()
+        cwRefreshStage()
         cwAddBubble(`Welcome back, **${cwUser.displayName}**! 🌸 You're now logged in. You can book appointments, cancel, or reschedule via our chat. How can I help you?`, 'bot')
       } else {
         cwSetAuthError(d.message || 'Login failed. Please check your credentials.')
@@ -384,7 +379,7 @@ How can I help you today?`
         method:      'POST',
         credentials: 'include',  // receives and stores the HttpOnly cookie
         headers:     { 'Content-Type': 'application/json' },
-        body:        JSON.stringify({ name, email, phone, idNumber, password })
+        body:        JSON.stringify({ name, email, phone, idNumber, password, sessionId: cwSessionId })
       })
       const d = await r.json()
       if (d.success) {
@@ -428,6 +423,23 @@ How can I help you today?`
     localStorage.setItem('clinicSessionId', cwSessionId)
   }
 
+  function cwSetStageLabel(stage) {
+    const el = document.getElementById('cw-stage-label')
+    if (el && stage) el.textContent = stage
+  }
+
+  async function cwRefreshStage() {
+    try {
+      const r = await fetch(`${API_BASE}/activity/stage?sessionId=${encodeURIComponent(cwSessionId)}`, {
+        credentials: 'include'
+      })
+      const d = await r.json()
+      if (d.success && d.stage) cwSetStageLabel(d.stage)
+    } catch { /* ignore */ }
+  }
+  window.cwRefreshStage = cwRefreshStage
+  cwRefreshStage()
+
   let cwRemaining           = 20
   let cwIsLoading           = false
   let cwAllServices         = []
@@ -435,7 +447,7 @@ How can I help you today?`
   let cwPendingServiceName  = null
   let cwPendingServicePrice = null
   let cwPendingSlot         = null
-  let cwGeminiMode          = false
+  let cwAiMode          = false
   let cwRescheduleInProgress = false
 
   // Guest booking modal state
@@ -533,7 +545,7 @@ How can I help you today?`
   window.cwShowAllServices = async function (filterCat = null) {
     if (cwAllServices.length === 0) {
       try {
-        const r = await fetch(`${API_BASE}/appointments/services`)
+        const r = await fetch(`${API_BASE}/appointments/services?sessionId=${encodeURIComponent(cwSessionId)}`)
         const d = await r.json()
         if (d.success) cwAllServices = d.services
       } catch { cwAddBubble('Could not load services. Please try again.', 'bot'); return }
@@ -551,19 +563,63 @@ How can I help you today?`
         <div class="cw-svc-name">${s.name}</div>
         <div class="cw-svc-price">${cwFmtPrice(s.price)}</div>
         <div class="cw-svc-desc">${s.description || ''}</div>
-        <button class="cw-svc-book-btn" onclick="cwStartBooking(${s.id},'${s.name.replace(/'/g, "\\'")}',${s.price})">Book this service →</button>
+        <button class="cw-svc-book-btn" onclick="cwGoToManualBooking({ serviceId: ${s.id} })">Book this service →</button>
       </div>`).join('')
 
     cwAddWidget(`${tabsHtml}<div class="cw-services-list">${cardsHtml}</div>`,
       filterCat ? `${filterCat} Services` : 'Our Services & Prices')
   }
 
-  window.cwStartBooking = function (id, name, price) {
-    cwPendingServiceId    = id
-    cwPendingServiceName  = name
-    cwPendingServicePrice = price
-    cwAddBubble(`Great choice! Let's book **${name}** for ${cwFmtPrice(price)} 😊\nPick a date and time below.`, 'bot')
-    cwAskForDate()
+  window.cwShowRecommendations = async function () {
+    try {
+      const r = await fetch(`${API_BASE}/activity/stage?sessionId=${encodeURIComponent(cwSessionId)}`, {
+        credentials: 'include'
+      })
+      const d = await r.json()
+      const recs = d.recommended || []
+      if (d.stage) cwSetStageLabel(d.stage)
+      if (!recs.length) {
+        cwAddBubble("Here are our treatments. Tap <strong>Book this service</strong> when one feels right.", 'bot')
+        cwShowAllServices()
+        return
+      }
+      cwAddBubble("Based on what you've been looking at and booking, these are the best next treatments for you:", 'bot')
+      const cardsHtml = recs.map(s => `
+        <div class="cw-svc-card">
+          <div class="cw-svc-name">${s.name}</div>
+          <div class="cw-svc-price">${cwFmtPrice(s.price)}</div>
+          <div class="cw-svc-desc">${s.reason || s.description || ''}</div>
+          <button class="cw-svc-book-btn" onclick="cwGoToManualBooking({ serviceId: ${s.id} })">Book this service →</button>
+        </div>`).join('')
+      cwAddWidget(`<div class="cw-services-list">${cardsHtml}</div>`, 'Recommended for you')
+    } catch {
+      cwShowAllServices()
+    }
+  }
+
+  window.cwGoToManualBooking = function (opts) {
+    if (opts && opts.serviceId) {
+      fetch(API_BASE + '/activity', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'view_services',
+          path: location.pathname,
+          sessionId: cwSessionId,
+          meta: { serviceId: opts.serviceId }
+        })
+      }).catch(function () {})
+    }
+    const q = new URLSearchParams()
+    if (opts && opts.serviceId) q.set('serviceId', opts.serviceId)
+    if (opts && opts.slot) q.set('slot', opts.slot)
+    const qs = q.toString()
+    window.location.href = '/booking' + (qs ? '?' + qs : '')
+  }
+
+  window.cwStartBooking = function (id) {
+    cwGoToManualBooking({ serviceId: id })
   }
 
   // ── Slot picker ────────────────────────────────────────────
@@ -603,12 +659,12 @@ How can I help you today?`
     if (!input) return
     const date = input.value
     if (!date) { cwShowToast('Please pick a date first!'); return }
-    cwGeminiMode = false
+    cwAiMode = false
     document.querySelectorAll('.cw-date-picker-widget').forEach(el => el.closest('.cw-widget-row')?.remove())
 
     const loader = cwAddWidget('<div style="text-align:center;padding:14px;font-size:11.5px;color:var(--cw-muted)">Loading slots…</div>')
     try {
-      const r = await fetch(`${API_BASE}/appointments/slots?days=30`)
+      const r = await fetch(`${API_BASE}/appointments/slots?days=30&sessionId=${encodeURIComponent(cwSessionId)}`)
       const d = await r.json()
       loader.remove()
       if (!d.success) { cwAddBubble('Could not load slots. Please try again.', 'bot'); return }
@@ -678,9 +734,17 @@ How can I help you today?`
   window.cwConfirmBooking = async function () {
     if (!cwPendingSlot) return
 
+    if (!cwAiMode) {
+      cwGoToManualBooking({
+        serviceId: cwPendingServiceId || undefined,
+        slot: cwPendingSlot
+      })
+      return
+    }
+
     if (cwLoggedIn) {
-      if (cwGeminiMode) {
-        // Gemini was guiding — pass slot back through chat
+      if (cwAiMode) {
+        // AI was guiding — pass slot back through chat
         const slotLabel = document.getElementById('cw-selected-slot-text')?.textContent || cwPendingSlot
         const thaiSlot  = new Date(new Date(cwPendingSlot).getTime() + 7 * 60 * 60 * 1000)
           .toISOString().replace('Z', '').slice(0, 19)
@@ -697,8 +761,9 @@ How can I help you today?`
           cwSetTyping(false)
           cwAddBubble(d.message || 'Something went wrong.', 'bot')
           if (typeof d.remaining === 'number') { cwRemaining = d.remaining; $counter.textContent = `${d.remaining} left` }
+          if (d.stage) cwSetStageLabel(d.stage)
         } catch { cwSetTyping(false); cwAddBubble('Could not connect to server.', 'bot') }
-        cwIsLoading = false; cwPendingSlot = null; cwGeminiMode = false
+        cwIsLoading = false; cwPendingSlot = null; cwAiMode = false
         return
       }
 
@@ -711,7 +776,7 @@ How can I help you today?`
           method:      'POST',
           credentials: 'include',
           headers:     { 'Content-Type': 'application/json' },
-          body:        JSON.stringify({ serviceId: cwPendingServiceId, slotDatetime: cwPendingSlot })
+          body:        JSON.stringify({ serviceId: cwPendingServiceId, slotDatetime: cwPendingSlot, sessionId: cwSessionId })
         })
         const d = await r.json()
         if (d.success) {
@@ -772,13 +837,15 @@ How can I help you today?`
     try {
       const r = await fetch(`${API_BASE}/appointments/book-guest`, {
         method:  'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           guestName, guestPhone,
           guestEmail: guestEmail || null,
           notes:      notes || null,
           serviceId:  cwGuestBookServiceId,
-          slotDatetime: cwGuestBookSlot
+          slotDatetime: cwGuestBookSlot,
+          sessionId: cwSessionId
         })
       })
       const d = await r.json()
@@ -823,12 +890,43 @@ How can I help you today?`
     </div>`
   }
 
+  window.cwCancelBooking = async function (bookingRef) {
+    if (!cwLoggedIn) {
+      cwAddBubble('Please log in to cancel a booking.', 'bot')
+      cwOpenAuth()
+      return
+    }
+    if (!bookingRef) {
+      cwAddBubble('Please enter your booking reference (e.g. TCB-20260605-001).', 'bot')
+      return
+    }
+    cwLastBookingRef = bookingRef
+    try {
+      const r = await fetch(`${API_BASE}/appointments/cancel`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookingRef, sessionId: cwSessionId })
+      })
+      const d = await r.json()
+      if (d.success) {
+        cwAddBubble(`Done — **${bookingRef}** is cancelled. 😊`, 'bot')
+        cwLastBookingRef = null
+      } else {
+        cwAddBubble(d.message || 'Could not cancel that booking.', 'bot')
+      }
+    } catch {
+      cwAddBubble('Could not reach the server to cancel. Please try again.', 'bot')
+    }
+  }
+
   // ── My appointments (logged-in only) ───────────────────────
   window.cwShowMyAppointments = async function () {
     if (!cwLoggedIn) { cwOpenAuth(); return }
     const loader = cwAddWidget('<div style="text-align:center;padding:14px;font-size:11.5px;color:var(--cw-muted)">Loading your appointments…</div>')
     try {
-      const r = await fetch(`${API_BASE}/appointments/my`, {
+      await fetch(`${API_BASE}/auth/me?sessionId=${encodeURIComponent(cwSessionId)}`, { credentials: 'include' })
+      const r = await fetch(`${API_BASE}/appointments/my?sessionId=${encodeURIComponent(cwSessionId)}`, {
         credentials: 'include'
       })
       const d = await r.json()
@@ -837,6 +935,7 @@ How can I help you today?`
       if (!confirmed.length) {
         cwAddBubble("You don't have any upcoming appointments. Would you like to book one? 😊", 'bot'); return
       }
+      cwLastBookingRef = confirmed[0].booking_ref
       const html = confirmed.map(a => `
         <div class="cw-appt-item">
           <div class="cw-appt-top">
@@ -845,8 +944,10 @@ How can I help you today?`
           </div>
           <div class="cw-appt-time">${cwFmtDatetime(a.slot_datetime)}</div>
           <div class="cw-appt-price">฿ ${cwFmtPrice(a.services?.price)}</div>
+          <button type="button" class="cw-qbtn" style="margin-top:8px" onclick="cwCancelBooking('${a.booking_ref}')">Cancel</button>
         </div>`).join('')
       cwAddWidget(`<div class="cw-appts-list">${html}</div>`, `Your Appointments (${confirmed.length})`)
+      cwRefreshStage()
     } catch {
       loader.remove()
       cwAddBubble('Could not load appointments. Please try again.', 'bot')
@@ -857,7 +958,7 @@ How can I help you today?`
   async function cwShowBookingReceipt(bookingRef) {
     if (!cwLoggedIn) return
     try {
-      const r = await fetch(`${API_BASE}/appointments/my`, {
+      const r = await fetch(`${API_BASE}/appointments/my?sessionId=${encodeURIComponent(cwSessionId)}`, {
         credentials: 'include'
       })
       const d = await r.json()
@@ -866,6 +967,7 @@ How can I help you today?`
       if (!appt) {
         cwAddBubble(`I couldn't find booking **${bookingRef}** on your account. Please double-check the reference 😊`, 'bot'); return
       }
+      cwLastBookingRef = appt.booking_ref
       const statusColor = appt.status === 'confirmed' ? '#2d6a4f' : '#c0392b'
       const statusBg    = appt.status === 'confirmed' ? '#d8f3dc' : '#fde8e8'
       cwAddWidget(`<div style="padding:2px;">
@@ -880,6 +982,7 @@ How can I help you today?`
           <div>฿ <strong style="color:var(--cw-ink);">${cwFmtPrice(appt.services?.price)}</strong></div>
           ${appt.notes ? `<div>${appt.notes}</div>` : ''}
         </div>
+        <button type="button" class="cw-qbtn" style="margin-top:10px" onclick="cwCancelBooking('${appt.booking_ref}')">Cancel this booking</button>
       </div>`, 'Appointment Details')
     } catch { /* Silently fail */ }
   }
@@ -896,14 +999,22 @@ How can I help you today?`
     const lower               = msg.toLowerCase()
     const isRescheduleIntent  = /\b(reschedule|change.*time|change.*date|change.*appointment|move.*appointment|update.*appointment)\b/.test(lower)
     const isBookIntent        = !isRescheduleIntent && /\b(book|appointment|schedule|reserve|slot|want to book|like to book)\b/.test(lower)
+    const isRecommendIntent   = /\b(recommend|suggestion|suggest|what should i|best for me|for me)\b/.test(lower)
     const isServiceIntent     = /\b(service|treatment|offer|price|cost|how much|menu|what do you have)\b/.test(lower)
     const isMyAppts           = /\b(my booking|my appointment|my reservation|what did i book)\b/.test(lower)
     const isCancelIntent      = /\b(cancel|cancellation)\b/.test(lower)
 
+    if (isRecommendIntent) {
+      cwAddBubble(msg, 'user')
+      $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
+      await cwShowRecommendations()
+      return
+    }
+
     if (isServiceIntent && !isBookIntent) {
       cwAddBubble(msg, 'user')
       $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
-      cwAddBubble("Here are our services! Tap a category to filter, or click **Book this service** to get started 😊", 'bot')
+      cwAddBubble("Here are our treatments. Tap <strong>Book this service</strong> to book on the booking page.", 'bot')
       cwShowAllServices(); return
     }
 
@@ -914,13 +1025,20 @@ How can I help you today?`
       cwShowMyAppointments(); return
     }
 
-    if ((isRescheduleIntent || isCancelIntent) && !cwRescheduleInProgress) {
+    if (isCancelIntent) {
       cwAddBubble(msg, 'user')
       $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
-      if (!cwLoggedIn) {
-        cwAddBubble("To reschedule or cancel appointments, please log in first. Your booking history is linked to your account. 😊", 'bot')
-        cwOpenAuth(); return
-      }
+      const refFromMsg = (msg.match(/\bTCB-\d{8}-\d{3}\b/i) || [])[0]
+      const ref = refFromMsg ? refFromMsg.toUpperCase() : cwLastBookingRef
+      if (ref) { await cwCancelBooking(ref); return }
+      cwAddBubble("Here are your bookings — tap Cancel on the one you want to drop.", 'bot')
+      await cwShowMyAppointments()
+      return
+    }
+
+    if (isRescheduleIntent && !cwRescheduleInProgress) {
+      cwAddBubble(msg, 'user')
+      $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
       cwRescheduleInProgress = true
       cwAddBubble("Sure! Please enter your **booking reference** (e.g. TCB-20260605-001) and I'll get that sorted for you 😊", 'bot')
       return
@@ -929,12 +1047,9 @@ How can I help you today?`
     if (isBookIntent) {
       cwAddBubble(msg, 'user')
       $input.value = ''; $input.style.height = 'auto'; $charLine.textContent = '0 / 100'
-      if (!cwLoggedIn) {
-        cwAddBubble("Sure! Browse our services below and click **Book this service** to make a quick booking — no login required! 😊\n\nOr **log in** to book via our AI chat for a more personalised experience.", 'bot')
-        cwShowAllServices(); return
-      }
-      cwAddBubble("Sure! Which service would you like to book? Here's what we offer 👇", 'bot')
-      cwShowAllServices(); return
+      cwAddBubble("I'll open the booking page so you can pick a service and time. It's the easiest way to book.", 'bot')
+      setTimeout(function () { cwGoToManualBooking() }, 400)
+      return
     }
 
     const bookingRefMatch = msg.match(/\bTCB-\d{8}-\d{3}\b/i)
@@ -978,8 +1093,9 @@ How can I help you today?`
       const d = await r.json()
       cwSetTyping(false)
 
-      if (d.slots && d.slots.length && cwLoggedIn) {
-        cwGeminiMode = true; cwRescheduleInProgress = false
+      if (d.slots && d.slots.length) {
+        cwAiMode = false
+        cwRescheduleInProgress = false
         if (d.message) cwAddBubble(d.message, 'bot')
         cwRenderSlotPicker(d.slots)
       } else {
@@ -989,6 +1105,8 @@ How can I help you today?`
         }
       }
       if (typeof d.remaining === 'number') { cwRemaining = d.remaining; $counter.textContent = `${d.remaining} left` }
+      if (d.stage) cwSetStageLabel(d.stage)
+      else cwRefreshStage()
     } catch {
       cwSetTyping(false)
       cwAddBubble('Could not connect to server. Is your backend running? 🔌', 'bot')

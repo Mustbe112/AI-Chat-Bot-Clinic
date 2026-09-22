@@ -1,28 +1,19 @@
 const express    = require('express')
 const router     = express.Router()
-const jwt        = require('jsonwebtoken')
-const { chat }   = require('../services/gemini')
-const supabase   = require('../services/supabase')
-const prisma = require('../services/prisma')
-const e = require('express')
+const { chat }   = require('../services/groq')
+const prisma     = require('../services/prisma')
+const { logActivity, readTokenUserId, claimSessionBookings } = require('../services/pipeline')
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production'
-
-// Resolve user from JWT (preferred) or sessionId fallback.
+// Resolve user from cookie/Bearer JWT (preferred) or sessionId fallback.
 // Returns { user, isLoggedIn }
 async function resolveUser(req, displayName = 'Guest') {
-  //  JWT path 
-  const header = req.headers.authorization
-  if (header && header.startsWith('Bearer ')) {
-    try {
-      const payload = jwt.verify(header.slice(7), JWT_SECRET)
-
-      const user = await prisma.users.findUnique({
-        where:{id: payload.userId}
-      })
-
-      if (user) return { user, isLoggedIn: true }
-    } catch { /* fall through to sessionId */ }
+  const tokenUserId = readTokenUserId(req)
+  if (tokenUserId) {
+    const user = await prisma.users.findUnique({ where: { id: tokenUserId } })
+    if (user) {
+      await claimSessionBookings(user.id, req.body && req.body.sessionId)
+      return { user, isLoggedIn: true }
+    }
   }
 
   //  sessionId path (guest)
@@ -67,14 +58,17 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Could not initialize session.' })
     }
 
-    // Pass isLoggedIn flag to Gemini so it can gate booking actions
-    const result = await chat(user.id, message.trim(), isLoggedIn)
+    const sessionId = req.body.sessionId || null
+    await logActivity({ userId: user.id, sessionId, event: 'chat' })
+
+    const result = await chat(user.id, message.trim(), isLoggedIn, { sessionId })
 
     return res.json({
       success:    result.success,
       message:    result.message,
       remaining:  result.remaining,
       slots:      result.slots || null,
+      stage:      result.stage || null,
       isLoggedIn,
       user: {
         id:          user.id,
@@ -92,13 +86,8 @@ router.post('/', async (req, res) => {
 //  GET /chat/history
 // Lightweight helper: resolve only the userId without creating guest rows
 async function resolveUserId(req) {
-  const header = req.headers.authorization
-  if (header && header.startsWith('Bearer ')) {
-    try {
-      const payload = jwt.verify(header.slice(7), JWT_SECRET)
-      return payload.userId
-    } catch {}
-  }
+  const tokenUserId = readTokenUserId(req)
+  if (tokenUserId) return tokenUserId
   const sessionId = req.query.sessionId || req.body?.sessionId
   if (sessionId) {
    const user = await prisma.users.findUnique({

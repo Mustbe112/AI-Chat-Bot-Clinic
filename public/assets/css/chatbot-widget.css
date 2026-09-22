@@ -122,6 +122,22 @@
   position: relative; z-index: 1;
 }
 
+#cw-stage-bar {
+  flex-shrink: 0;
+  padding: 5px 16px;
+  background: #f9f5ef;
+  border-bottom: 1px solid var(--cw-border);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cw-muted);
+}
+#cw-stage-label {
+  color: var(--cw-rose);
+  font-weight: 600;
+}
+
 /* Auth status pill in header */
 #cw-auth-status {
   font-size: 9.5px; font-weight: 600;

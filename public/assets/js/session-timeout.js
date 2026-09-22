@@ -1,5 +1,5 @@
 ;(function () {
-  const API_BASE = 'https://ai-chat-bot-clinic.onrender.com'
+  const API_BASE = window.CLINIC_API_BASE || 'https://ai-chat-bot-clinic.onrender.com'
 
   const SESSION_TIMEOUT_SEC = 60 * 60  // 1 hour
   const WARNING_BEFORE_SEC  = 120      // warn 2 mins before
@@ -10,7 +10,8 @@
 
   let sessionActive = false
 
-  fetch(API_BASE + '/auth/me', { credentials: 'include' })
+  var initSid = localStorage.getItem('clinicSessionId') || ''
+  fetch(API_BASE + '/auth/me' + (initSid ? ('?sessionId=' + encodeURIComponent(initSid)) : ''), { credentials: 'include' })
     .then(function (res) {
       if (!res.ok) return  // not logged in, do nothing
       sessionActive = true
@@ -116,7 +117,8 @@
     hideModal()
 
     try {
-      const res = await fetch(API_BASE + '/auth/me', {
+      const staySid = localStorage.getItem('clinicSessionId') || ''
+      const res = await fetch(API_BASE + '/auth/me' + (staySid ? ('?sessionId=' + encodeURIComponent(staySid)) : ''), {
         credentials: 'include'   // sends the cookie; server issues a fresh one
       })
 
